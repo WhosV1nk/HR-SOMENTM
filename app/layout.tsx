@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
-import { getViewer } from "@/lib/auth";
+import { getViewer, isMentor } from "@/lib/auth";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -22,6 +22,7 @@ export default async function RootLayout({
 }>) {
   const viewer = await getViewer();
   const role = viewer ? (viewer.isAdmin ? "admin" : "member") : null;
+  const mentor = viewer && !viewer.isAdmin ? await isMentor(viewer.person.id) : false;
 
   return (
     <html lang="en" className={inter.variable}>
@@ -63,7 +64,7 @@ export default async function RootLayout({
           />
 
           <div className="relative z-10 flex h-screen w-full">
-            <Sidebar role={role} />
+            <Sidebar role={role} mentor={mentor} />
             <main className="flex-1 overflow-y-auto">{children}</main>
           </div>
         </ClerkProvider>

@@ -3,6 +3,8 @@ import { logAction, requireAdmin } from "@/lib/auth";
 import { CalendarDays } from "lucide-react";
 import { Avatar, Empty, PageHeader, SectionHead, StatusBadge } from "@/components/ui";
 import { revalidatePath } from "next/cache";
+import { notify } from "@/lib/notify";
+import { formatDate } from "@/lib/time";
 
 export default async function LeavePage() {
   await requireAdmin();
@@ -14,6 +16,12 @@ export default async function LeavePage() {
     // two FKs point at people (person_id, decided_by) — name the one to embed
     .select("*, people!leave_requests_person_id_fkey(first_name, last_name, role, department)")
     .order("created_at", { ascending: false });
+  const { data: hrRequests } = await supabase
+    .from("hr_requests")
+    .select("*, people!hr_requests_person_id_fkey(first_name, last_name, role)")
+    .order("status", { ascending: false }) // Open before Resolved/Declined
+    .order("created_at", { ascending: false })
+    .limit(30);
 
   async function createLeaveRequest(formData: FormData) {
     "use server";
@@ -52,13 +60,46 @@ export default async function LeavePage() {
     const id = formData.get("id") as string;
     const status = formData.get("status") as string;
     if (status !== "Approved" && status !== "Rejected") throw new Error("Invalid decision.");
+    const decision_note = ((formData.get("note") as string) ?? "").trim() || null;
 
-    await supabase
+    const { data: decided } = await supabase
       .from("leave_requests")
-      .update({ status, decided_by: actor.id, decided_at: new Date().toISOString() })
+      .update({ status, decided_by: actor.id, decided_at: new Date().toISOString(), decision_note })
       .eq("id", id)
-      .eq("status", "Pending");
+      .eq("status", "Pending")
+      .select("person_id, leave_type, start_date, end_date")
+      .maybeSingle();
+    if (decided) {
+      await notify(
+        decided.person_id,
+        `Leave ${status.toLowerCase()}`,
+        `${decided.leave_type} · ${formatDate(decided.start_date)} → ${formatDate(decided.end_date)}${decision_note ? ` — ${decision_note}` : ""}`,
+        "leave",
+      );
+    }
     await logAction(actor.id, `leave.${status.toLowerCase()}`, "leave_request", id);
+    revalidatePath("/leave");
+  }
+
+  async function respondHrRequest(formData: FormData) {
+    "use server";
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
+    const id = formData.get("id") as string;
+    const status = formData.get("status") as string;
+    const response = ((formData.get("response") as string) ?? "").trim();
+    if (status !== "Resolved" && status !== "Declined") throw new Error("Invalid decision.");
+    if (!response) throw new Error("Write a reply for the person.");
+
+    const { data: r } = await supabase
+      .from("hr_requests")
+      .update({ status, response, decided_by: actor.id, decided_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("status", "Open")
+      .select("person_id, subject")
+      .maybeSingle();
+    if (r) await notify(r.person_id, `HR replied: ${r.subject}`, response.slice(0, 160), "request");
+    await logAction(actor.id, `hr_request.${status.toLowerCase()}`, "hr_request", id);
     revalidatePath("/leave");
   }
 
@@ -113,6 +154,7 @@ export default async function LeavePage() {
                       {r.status === "Pending" ? (
                         <form action={updateLeaveStatus} className="inline-flex items-center gap-2">
                           <input type="hidden" name="id" value={r.id} />
+                          <input name="note" placeholder="Note" aria-label="Decision note" className="input w-32 rounded-full py-1.5 text-[13px]" />
                           <button type="submit" name="status" value="Approved" className="btn-primary btn-sm">Approve</button>
                           <button type="submit" name="status" value="Rejected" className="btn-ghost btn-sm hover:!text-brand-2">Reject</button>
                         </form>
@@ -174,6 +216,38 @@ export default async function LeavePage() {
             </button>
           </div>
         </form>
+      </section>
+
+      <section className="space-y-5 border-t border-border pt-12">
+        <SectionHead index="03" title="HR requests" description={`${hrRequests?.filter((r) => r.status === "Open").length ?? 0} open`} />
+        <ul className="border-t border-border">
+          {hrRequests?.map((r) => (
+            <li key={r.id} className="grid grid-cols-1 gap-4 border-b border-border py-5 lg:grid-cols-[1fr_26rem]">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <span className="font-medium text-text">{r.subject}</span>
+                  <StatusBadge status={r.status === "Open" ? "Pending" : r.status === "Resolved" ? "Approved" : "Rejected"} label={r.status} />
+                </div>
+                <div className="font-mono text-[11px] text-faint">
+                  {r.people?.first_name} {r.people?.last_name} · {r.category} · {formatDate(r.created_at)}
+                </div>
+                {r.details && <p className="text-[13px] text-muted">{r.details}</p>}
+                {r.response && <p className="text-[13px] text-text">Reply: {r.response}</p>}
+              </div>
+              {r.status === "Open" && (
+                <form action={respondHrRequest} className="space-y-2">
+                  <input type="hidden" name="id" value={r.id} />
+                  <textarea name="response" rows={2} className="input" placeholder="Reply to the person…" required />
+                  <div className="flex justify-end gap-2">
+                    <button name="status" value="Resolved" className="btn-primary btn-sm">Resolve</button>
+                    <button name="status" value="Declined" className="btn-ghost btn-sm hover:!text-brand-2">Decline</button>
+                  </div>
+                </form>
+              )}
+            </li>
+          ))}
+          {!hrRequests?.length && <li className="py-4 text-[13px] text-muted">No requests yet.</li>}
+        </ul>
       </section>
     </div>
   );

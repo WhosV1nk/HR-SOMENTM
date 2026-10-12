@@ -11,6 +11,9 @@ import {
   Settings,
   ScrollText,
   Home,
+  ListChecks,
+  FolderLock,
+  ClipboardCheck,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationsBell } from "./notifications-bell";
@@ -18,6 +21,8 @@ import { StatusPill, Wordmark } from "./wordmark";
 import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 
 type NavSection = { title?: string; items: { href: string; label: string; icon: typeof Home }[] };
+
+const REVIEW_ITEM = { href: "/review", label: "Review work", icon: ClipboardCheck };
 
 const ADMIN_NAV: NavSection[] = [
   {
@@ -30,6 +35,7 @@ const ADMIN_NAV: NavSection[] = [
     items: [
       { href: "/people", label: "People", icon: Users },
       { href: "/interns", label: "Interns", icon: GraduationCap },
+      REVIEW_ITEM,
     ]
   },
   {
@@ -54,15 +60,32 @@ const ADMIN_NAV: NavSection[] = [
   }
 ];
 
-const MEMBER_NAV: NavSection[] = [{ items: [{ href: "/portal", label: "My portal", icon: Home }] }];
+const MEMBER_NAV: NavSection[] = [
+  { items: [{ href: "/portal", label: "Dashboard", icon: Home }] },
+  {
+    title: "WORK",
+    items: [
+      { href: "/portal/tasks", label: "Tasks", icon: ListChecks },
+      { href: "/portal/attendance", label: "Attendance", icon: Calendar },
+      { href: "/portal/leave", label: "Leave & requests", icon: CalendarDays },
+    ],
+  },
+  { title: "RECORDS", items: [{ href: "/portal/documents", label: "Documents", icon: FolderLock }] },
+];
 
-export function Sidebar({ role }: { role: "admin" | "member" | null }) {
+
+export function Sidebar({ role, mentor = false }: { role: "admin" | "member" | null; mentor?: boolean }) {
   const path = usePathname();
 
   if (!role || path.startsWith("/sign-in") || path.startsWith("/sign-up") || path.startsWith("/onboarding") || path.startsWith("/verify")) {
     return null;
   }
-  const NAV_SECTIONS = role === "admin" ? ADMIN_NAV : MEMBER_NAV;
+  const NAV_SECTIONS =
+    role === "admin"
+      ? ADMIN_NAV
+      : mentor
+        ? [...MEMBER_NAV, { title: "MENTORING", items: [REVIEW_ITEM] }]
+        : MEMBER_NAV;
   
   return (
     <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-border bg-bg/70 backdrop-blur-xl md:flex">

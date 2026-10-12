@@ -5,6 +5,8 @@ import { GraduationCap, Award } from "lucide-react";
 import { Avatar, Empty, PageHeader, SectionHead, StatusBadge } from "@/components/ui";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { revalidatePath } from "next/cache";
+import { notify } from "@/lib/notify";
+import { formatDate } from "@/lib/time";
 
 export default async function InternsPage() {
   await requireAdmin();
@@ -37,6 +39,9 @@ export default async function InternsPage() {
     const description = formData.get("description") as string;
     const due_date = formData.get("due_date") as string;
     const priority = formData.get("priority") as string;
+    const estimated_hours = formData.get("estimated_hours") ? Number(formData.get("estimated_hours")) : null;
+    const resource_url = ((formData.get("resource_url") as string) ?? "").trim() || null;
+    if (resource_url && !/^https?:\/\//i.test(resource_url)) throw new Error("Resource links must start with http(s)://");
 
     await supabase.from("intern_tasks").insert({
       intern_id,
@@ -46,7 +51,10 @@ export default async function InternsPage() {
       priority,
       status: "Assigned",
       assigned_by: actor.id,
+      estimated_hours,
+      resource_url,
     });
+    await notify(intern_id, "New task assigned", `${title} · due ${formatDate(due_date)}`, "task");
     await logAction(actor.id, "task.assigned", "person", intern_id, { title });
 
     revalidatePath("/interns");
@@ -156,6 +164,14 @@ export default async function InternsPage() {
             <div>
               <label className="label">Due date</label>
               <input type="date" name="due_date" className="input" required />
+            </div>
+            <div>
+              <label className="label">Estimated effort (hours)</label>
+              <input type="number" name="estimated_hours" min="0.5" step="0.5" className="input tabular-nums" placeholder="e.g. 6" />
+            </div>
+            <div>
+              <label className="label">Resources link</label>
+              <input type="url" name="resource_url" className="input" placeholder="https://… (brief, Figma, repo)" />
             </div>
             <div>
               <label className="label">Priority</label>

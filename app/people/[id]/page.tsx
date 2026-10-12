@@ -1,11 +1,18 @@
+import { attempt, type ActionResult } from "@/lib/action-result";
+import { ActionForm } from "@/components/action-form";
 import { createClient } from "@/utils/supabase/server";
 import { logAction, requireAdmin } from "@/lib/auth";
 import { allowEmail, disallowEmail } from "@/lib/clerk-allowlist";
+import { fileFrom, storeFile } from "@/lib/files";
+import { notify } from "@/lib/notify";
+import { KIND_LABEL } from "@/lib/documents";
+import { formatDate } from "@/lib/time";
+import { leaveBalances } from "@/lib/leave";
 import { createAdminClient } from "@/utils/supabase/admin";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowUpRight, Mail, Phone, Calendar, CheckCircle2, Circle, Edit3, UserX, UserCheck, CheckSquare } from "lucide-react";
+import { ArrowUpRight, Download, Upload, Mail, Phone, Calendar, CheckCircle2, Circle, Edit3, UserX, UserCheck, CheckSquare } from "lucide-react";
 import { Avatar, PageHeader, SectionHead, Stat, StatusBadge } from "@/components/ui";
 
 export default async function PersonProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -59,6 +66,73 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
     redirect("/people");
   }
 
+  // Server Action: verify / reject an uploaded document
+  async function reviewDocumentAction(_prev: ActionResult, formData: FormData) {
+    "use server";
+    return attempt(() => reviewDocumentActionImpl(formData));
+  }
+
+  async function reviewDocumentActionImpl(formData: FormData) {
+    "use server";
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
+    const docId = formData.get("document_id") as string;
+    const decision = formData.get("decision") as string;
+    const reason = ((formData.get("reason") as string) ?? "").trim() || null;
+    if (decision !== "Verified" && decision !== "Rejected") throw new Error("Invalid decision.");
+    if (decision === "Rejected" && !reason) throw new Error("Give a reason so they know what to re-upload.");
+
+    const { data: doc } = await supabase
+      .from("documents")
+      .update({ status: decision, rejection_reason: decision === "Rejected" ? reason : null, verified_by: actor.id, verified_at: new Date().toISOString() })
+      .eq("id", docId)
+      .eq("person_id", id)
+      .neq("status", "Issued")
+      .select("kind, title")
+      .maybeSingle();
+    if (!doc) throw new Error("Document not found.");
+    if (doc.kind === "identity") {
+      await createAdminClient().from("onboarding_submissions").update({ identity_doc_status: decision, rejection_reason: reason }).eq("person_id", id);
+    }
+    await notify(id, decision === "Verified" ? "Document verified" : "Document needs re-upload", `${doc.title}${reason ? ` — ${reason}` : ""}`, "document");
+    await logAction(actor.id, `document.${decision.toLowerCase()}`, "person", id, { kind: doc.kind });
+    revalidatePath(`/people/${id}`);
+  }
+
+  // Server Action: HR issues a letter (offer letter, agreement…) to this person
+  async function issueDocumentAction(_prev: ActionResult, formData: FormData) {
+    "use server";
+    return attempt(() => issueDocumentActionImpl(formData));
+  }
+
+  async function issueDocumentActionImpl(formData: FormData) {
+    "use server";
+    const { person: actor } = await requireAdmin();
+    const kind = formData.get("kind") as string;
+    const title = ((formData.get("title") as string) ?? "").trim();
+    const file = fileFrom(formData, "file");
+    if (!["offer_letter", "agreement", "other"].includes(kind)) throw new Error("Pick a document type.");
+    if (!file) throw new Error("Choose the file to issue.");
+
+    const stored = await storeFile(id, file, "issued");
+    const supabase = await createClient();
+    const { error } = await supabase.from("documents").insert({
+      person_id: id,
+      kind,
+      title: title || KIND_LABEL[kind],
+      file_path: stored.path,
+      file_name: stored.name,
+      mime_type: stored.type,
+      size_bytes: stored.size,
+      status: "Issued",
+      uploaded_by: actor.id,
+    });
+    if (error) throw new Error(`Couldn't issue the document: ${error.message}`);
+    await notify(id, "New document from HR", title || KIND_LABEL[kind], "document");
+    await logAction(actor.id, "document.issued", "person", id, { kind });
+    revalidatePath(`/people/${id}`);
+  }
+
   // Server Action: Reactivate
   async function reactivatePersonAction() {
     "use server";
@@ -84,14 +158,16 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
     { data: reviews },
     { data: tasks },
     { data: onboardingSub },
-    { data: onboardingTok }
+    { data: onboardingTok },
+    { data: documents }
   ] = await Promise.all([
     supabase.from("attendance").select("*").eq("person_id", person.id).order("date", { ascending: false }).limit(10),
     supabase.from("leave_requests").select("*").eq("person_id", person.id).order("start_date", { ascending: false }),
     supabase.from("performance_reviews").select("*").eq("person_id", person.id).order("created_at", { ascending: false }),
     supabase.from("intern_tasks").select("*").eq("intern_id", person.id).order("due_date", { ascending: false }),
     adminSupabase.from("onboarding_submissions").select("*").eq("person_id", person.id).maybeSingle(),
-    adminSupabase.from("onboarding_tokens").select("*").eq("person_id", person.id).order("created_at", { ascending: false }).limit(1).maybeSingle()
+    adminSupabase.from("onboarding_tokens").select("*").eq("person_id", person.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("documents").select("*").eq("person_id", person.id).order("created_at", { ascending: false })
   ]);
 
   let activeToken = onboardingTok?.token;
@@ -120,7 +196,11 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
   const hasDetails = Boolean(person.phone && person.dob && person.address);
   const hasEmergency = Boolean(person.emergency_contact);
   const isAgreementSigned = isFounder || Boolean(onboardingSub?.agreement_signed) || person.status === "Active";
-  const isDocVerified = isFounder || onboardingSub?.identity_doc_status === "Verified" || person.status === "Active";
+  const isDocVerified =
+    isFounder ||
+    onboardingSub?.identity_doc_status === "Verified" ||
+    Boolean(documents?.some((d) => d.kind === "identity" && d.status === "Verified")) ||
+    person.status === "Active";
 
   const onboardingChecklist = [
     { label: "Account created & SOMENTM ID assigned", done: true, owner: "HR" },
@@ -282,15 +362,11 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
           <section className="space-y-4">
             <SectionHead index="03" title="Leave balance" href="/leave" hrefLabel="All leave" />
             <div className="grid grid-cols-3 border-y border-border">
-              {[
-                ["Casual", 8, 12],
-                ["Sick", 6, 10],
-                ["Earned", 12, 18],
-              ].map(([label, used, total], i) => (
-                <div key={label} className={`py-4 ${i ? "border-l border-border pl-4" : ""}`}>
-                  <div className="label">{label}</div>
+              {leaveBalances(person.person_type, leaves ?? []).map(({ type, left, total }, i) => (
+                <div key={type} className={`py-4 ${i ? "border-l border-border pl-4" : ""}`}>
+                  <div className="label">{type}</div>
                   <div className="display text-2xl tabular-nums">
-                    {used}<span className="stat-unit">/ {total}</span>
+                    {left}<span className="stat-unit">/ {total} left</span>
                   </div>
                 </div>
               ))}
@@ -301,7 +377,46 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
         {/* Right column */}
         <div className="space-y-12 lg:col-span-2">
           <section className="space-y-5">
-            <SectionHead index="04" title="Attendance" description="Most recent ten days" href="/attendance" hrefLabel="Full log" />
+            <SectionHead index="04" title="Documents" description="Uploads stay pending until you verify them." />
+            <ul className="border-t border-border">
+              {documents?.map((d) => (
+                <li key={d.id} className="grid grid-cols-1 gap-3 border-b border-border py-4 md:grid-cols-[1fr_auto] md:items-center">
+                  <div className="min-w-0">
+                    <Link href={`/files/document/${d.id}`} className="inline-flex items-center gap-2 font-medium text-text hover:text-brand-2">
+                      <Download size={14} className="text-faint" /> {d.title}
+                    </Link>
+                    <div className="font-mono text-[11px] text-faint">
+                      {KIND_LABEL[d.kind]} · {formatDate(d.created_at)}{d.status === "Rejected" && d.rejection_reason ? ` · ${d.rejection_reason}` : ""}
+                    </div>
+                  </div>
+                  {d.status === "Pending" ? (
+                    <ActionForm action={reviewDocumentAction} className="flex flex-wrap items-center gap-2">
+                      <input type="hidden" name="document_id" value={d.id} />
+                      <input name="reason" placeholder="Reason if rejecting" className="input w-44 rounded-full py-1.5 text-[13px]" />
+                      <button name="decision" value="Verified" className="btn-primary btn-sm">Verify</button>
+                      <button name="decision" value="Rejected" className="btn-ghost btn-sm hover:!text-brand-2">Reject</button>
+                    </ActionForm>
+                  ) : (
+                    <StatusBadge status={d.status === "Verified" ? "Approved" : d.status === "Issued" ? "Completed" : d.status} label={d.status} />
+                  )}
+                </li>
+              ))}
+              {!documents?.length && <li className="py-4 text-[13px] text-muted">No documents yet.</li>}
+            </ul>
+            <ActionForm action={issueDocumentAction} className="card-2 grid grid-cols-1 gap-3 p-4 md:grid-cols-[10rem_1fr_1fr_auto] md:items-center">
+              <select name="kind" className="input py-2 text-[13px]" aria-label="Document type">
+                <option value="offer_letter">Offer letter</option>
+                <option value="agreement">Agreement</option>
+                <option value="other">Other letter</option>
+              </select>
+              <input name="title" placeholder="Title (optional)" className="input py-2 text-[13px]" />
+              <input type="file" name="file" accept="application/pdf,image/*" required aria-label="File" className="input py-1.5 text-xs file:mr-2 file:rounded-full file:border-0 file:bg-white file:px-2.5 file:py-0.5 file:text-xs file:font-semibold file:text-black" />
+              <button className="btn-secondary btn-sm"><Upload size={14} /> Issue</button>
+            </ActionForm>
+          </section>
+
+          <section className="space-y-5">
+            <SectionHead index="05" title="Attendance" description="Most recent ten days" href="/attendance" hrefLabel="Full log" />
             <div className="card overflow-x-auto">
               <table className="table">
                 <thead>
@@ -335,7 +450,7 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
           </section>
 
           <section className="space-y-5">
-            <SectionHead index="05" title="Performance" href="/performance" hrefLabel="All reviews" />
+            <SectionHead index="06" title="Performance" href="/performance" hrefLabel="All reviews" />
             {latestReview ? (
               <div className="grid grid-cols-1 gap-4 border-y border-border py-6 md:grid-cols-[10rem_1fr] md:gap-8">
                 <div>
@@ -356,7 +471,7 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
 
           {isIntern && (
             <section className="space-y-5">
-              <SectionHead index="06" title="Assigned tasks" description={`${tasks?.length || 0} tasks`} href="/interns" hrefLabel="Task engine" />
+              <SectionHead index="07" title="Assigned tasks" description={`${tasks?.length || 0} tasks`} href="/interns" hrefLabel="Task engine" />
               {tasks && tasks.length > 0 ? (
                 <ul className="border-t border-border">
                   {tasks.map((t, i) => (

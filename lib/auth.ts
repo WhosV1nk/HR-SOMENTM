@@ -77,6 +77,15 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   return { person, isAdmin: person.access_role === "admin" && person.status === "Active" };
 });
 
+/** Whether this person mentors anyone (gets the Review work page). */
+export const isMentor = cache(async (personId: string) => {
+  const { count } = await createAdminClient()
+    .from("people")
+    .select("id", { count: "exact", head: true })
+    .eq("mentor_id", personId);
+  return (count ?? 0) > 0;
+});
+
 /** Any approved person. Unapproved signed-in users go to /no-access. */
 export async function requireViewer(): Promise<Viewer> {
   const viewer = await getViewer();

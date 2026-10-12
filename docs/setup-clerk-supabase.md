@@ -58,6 +58,26 @@ allowlist once by hand, or they won't be able to sign up.
 - an email that isn't in People gets the **"Not on the list"** screen
 - *Audit log* (sidebar → System) shows `account.linked` for your first sign-in
 
+## Phase 2 go-live: intern & employee portal
+
+Before merging the `phase-2-intern-portal` branch into `main`:
+
+1. Make sure `20261012000002_drop_legacy_policies.sql` has been run. It removes
+   old "allow everyone" policies that kept `people` and `onboarding_tokens`
+   readable with the public key.
+2. Run `supabase/migrations/20261012000003_phase2_portal.sql` in the SQL
+   editor. It creates the private `documents` storage bucket and the documents,
+   task submissions, attendance corrections, work logs, holidays and HR
+   requests tables, plus the self check-in/out functions, all with RLS.
+3. Merge and push. Then:
+   - add this year's holidays in **Settings → Holidays**
+   - assign mentors on **Interns**: mentors get a *Review work* page
+   - check the leave allowances in `lib/leave.ts` (Employees 12/10/18,
+     Interns 6/6 casual/sick)
+
+Files are private. The browser only ever gets a two-minute signed link, issued
+after the database confirms the viewer may see that record.
+
 ## Local development
 
 `.env.local` currently holds **production** Clerk keys, which Clerk only

@@ -1,18 +1,24 @@
 import { createClient } from "@/utils/supabase/server";
 import { logAction, requireAdmin } from "@/lib/auth";
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, X } from "lucide-react";
+import { notify } from "@/lib/notify";
+import { formatDate, todayIST } from "@/lib/time";
 import { Avatar, Empty, PageHeader, SectionHead, Stat, StatusBadge } from "@/components/ui";
 
 export default async function AttendancePage() {
   await requireAdmin();
   const supabase = await createClient();
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayIST();
 
   const { data: people } = await supabase.from("people").select("*").order("first_name");
   const { data: attendance } = await supabase.from("attendance").select("*").eq("date", today);
+  const { data: corrections } = await supabase
+    .from("attendance_corrections")
+    .select("*, people!attendance_corrections_person_id_fkey(first_name, last_name, role)")
+    .eq("status", "Pending")
+    .order("date");
 
   const attendanceMap = new Map();
   attendance?.forEach((record) => {
@@ -49,6 +55,47 @@ export default async function AttendancePage() {
     revalidatePath("/attendance");
   }
 
+  async function decideCorrection(formData: FormData) {
+    "use server";
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
+    const id = formData.get("id") as string;
+    const decision = formData.get("decision") as string;
+    const note = ((formData.get("note") as string) ?? "").trim() || null;
+    if (decision !== "Approved" && decision !== "Rejected") throw new Error("Invalid decision.");
+
+    const { data: c } = await supabase
+      .from("attendance_corrections")
+      .update({ status: decision, decided_by: actor.id, decided_at: new Date().toISOString(), decision_note: note })
+      .eq("id", id)
+      .eq("status", "Pending")
+      .select("*")
+      .maybeSingle();
+    if (!c) throw new Error("Already decided.");
+
+    if (decision === "Approved") {
+      const inT = c.requested_check_in as string | null;
+      const outT = c.requested_check_out as string | null;
+      const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+      const { data: existing } = await supabase.from("attendance").select("check_in, check_out").eq("person_id", c.person_id).eq("date", c.date).maybeSingle();
+      const check_in = inT ?? existing?.check_in ?? null;
+      const check_out = outT ?? existing?.check_out ?? null;
+      await supabase.from("attendance").upsert({
+        person_id: c.person_id,
+        date: c.date,
+        check_in,
+        check_out,
+        working_hours: check_in && check_out ? Math.round(((mins(check_out) - mins(check_in)) / 60) * 100) / 100 : null,
+        status: check_in && mins(check_in) > 600 ? "Late" : "Present",
+        method: "Correction",
+        notes: c.reason,
+      }, { onConflict: "person_id,date" });
+    }
+    await notify(c.person_id, `Attendance correction ${decision.toLowerCase()}`, `${formatDate(c.date)}${note ? ` — ${note}` : ""}`, "attendance");
+    await logAction(actor.id, `attendance.correction_${decision.toLowerCase()}`, "person", c.person_id, { date: c.date });
+    revalidatePath("/attendance");
+  }
+
   const MARKS = [
     { value: "Present", label: "Present", tone: "hover:text-ok" },
     { value: "Late", label: "Late", tone: "hover:text-warn" },
@@ -64,11 +111,7 @@ export default async function AttendancePage() {
         dim="day by day."
         description="Daily check-ins, working hours and who's in, late, away or remote."
       >
-        <div className="flex items-center gap-1 rounded-full border border-border px-1.5 py-1 text-sm">
-          <button className="btn-ghost h-8 w-8 !p-0" aria-label="Previous month"><ChevronLeft size={16} /></button>
-          <span className="px-2 font-medium">October 2026</span>
-          <button className="btn-ghost h-8 w-8 !p-0" aria-label="Next month"><ChevronRight size={16} /></button>
-        </div>
+        <span className="status-pill"><span className="live-dot" /> <b>{formatDate(today)}</b> · IST</span>
       </PageHeader>
 
       <section className="stat-strip">
@@ -140,6 +183,34 @@ export default async function AttendancePage() {
           </table>
         </div>
       </section>
+
+      {corrections && corrections.length > 0 && (
+        <section className="space-y-5">
+          <SectionHead index="02" title="Correction requests" description={`${corrections.length} waiting`} />
+          <ul className="border-t border-border">
+            {corrections.map((c) => (
+              <li key={c.id} className="grid grid-cols-1 gap-4 border-b border-border py-5 md:grid-cols-[1fr_auto] md:items-center">
+                <div className="flex items-start gap-3">
+                  <Avatar first={c.people?.first_name} last={c.people?.last_name} />
+                  <div>
+                    <div className="font-medium text-text">{c.people?.first_name} {c.people?.last_name} · {formatDate(c.date)}</div>
+                    <div className="font-mono text-[12px] text-muted">
+                      In {c.requested_check_in?.slice(0, 5) ?? "—"} · Out {c.requested_check_out?.slice(0, 5) ?? "—"}
+                    </div>
+                    <div className="text-[13px] text-muted">{c.reason}</div>
+                  </div>
+                </div>
+                <form action={decideCorrection} className="flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="id" value={c.id} />
+                  <input name="note" placeholder="Note (optional)" className="input w-48 rounded-full py-1.5 text-[13px]" />
+                  <button name="decision" value="Approved" className="btn-primary btn-sm"><Check size={14} /> Approve</button>
+                  <button name="decision" value="Rejected" className="btn-ghost btn-sm hover:!text-brand-2"><X size={14} /> Reject</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

@@ -3,13 +3,14 @@ import { createClient } from "@/utils/supabase/server";
 import { logAction, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { todayIST } from "@/lib/time";
 import { Avatar, Empty, PageHeader, SectionHead, Stat, StatusBadge } from "@/components/ui";
 
 export default async function Dashboard() {
   await requireAdmin();
   const supabase = await createClient();
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayIST();
 
   // Single Source of Truth Queries from database
   const [
@@ -43,20 +44,24 @@ export default async function Dashboard() {
     const person_id = formData.get("person_id") as string;
     const action_type = formData.get("action_type") as string;
     const now = new Date();
-    const timeStr = now.toTimeString().split(" ")[0].substring(0, 5);
+    // Vercel runs in UTC; record and judge lateness in IST
+    const timeStr = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
 
     if (action_type === "check_in") {
-      const isLate = now.getHours() >= 10;
+      const isLate = timeStr > "10:00";
       await supabase.from("attendance").upsert({
         person_id,
         date: today,
         check_in: timeStr,
         status: isLate ? "Late" : "Present",
-        method: "Self Check-in",
+        method: "HR Desk",
       }, { onConflict: "person_id,date" });
     } else {
+      const { data: rec } = await supabase.from("attendance").select("check_in").eq("person_id", person_id).eq("date", today).maybeSingle();
+      const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
       await supabase.from("attendance").update({
         check_out: timeStr,
+        working_hours: rec?.check_in ? Math.round(((mins(timeStr) - mins(rec.check_in)) / 60) * 100) / 100 : null,
       }).eq("person_id", person_id).eq("date", today);
     }
 
