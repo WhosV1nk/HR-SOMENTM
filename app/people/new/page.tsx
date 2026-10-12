@@ -3,6 +3,7 @@ import { PageHeader, SectionHead } from "@/components/ui";
 import Link from "next/link";
 import { logAction, requireAdmin } from "@/lib/auth";
 import { allowEmail } from "@/lib/clerk-allowlist";
+import { sendOnboardingEmail } from "@/lib/email";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { redirect } from "next/navigation";
 
@@ -89,105 +90,17 @@ export default async function NewPersonPage({
       throw new Error("Unable to create onboarding token.");
     }
 
-    // Dynamic Branded Email Notification via Resend with Secure Token Link
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (resendApiKey) {
-      const { Resend } = await import("resend");
-      const resend = new Resend(resendApiKey);
-
-        const isFounder = person_type === "Founder" || employment_type === "Founder";
-        const isIntern = person_type === "Intern";
-        const isContractor = person_type === "Contractor";
-
-        const titleType = isFounder ? "Founder" : isIntern ? "Intern" : isContractor ? "Contractor" : "Employee";
-        const subject = isFounder
-          ? `Welcome to SOMENTM HR — Your Founder Account Has Been Created`
-          : isIntern
-          ? `Welcome to SOMENTM — Internship Registration Confirmed`
-          : `Welcome to SOMENTM — Complete Your ${titleType} Onboarding`;
-
-        const roleDescription = isFounder
-          ? `Founder & ${role}`
-          : isIntern
-          ? `${role} (Internship Program)`
-          : role;
-
-        const appUrl = process.env.APP_URL ?? (process.env.VERCEL_URL
-          ? `https://${process.env.VERCEL_URL}`
-          : "http://localhost:3000");
-        const onboardingUrl = new URL(`/onboarding/${rawToken}`, appUrl).toString();
-
-        const emailHtml = `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; background-color: #090a0c; color: #ffffff; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
-            <div style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px; margin-bottom: 24px;">
-              <h1 style="color: #ff3b3b; font-size: 20px; font-weight: 800; letter-spacing: 2px; margin: 0;">SOMENTM</h1>
-              <div style="color: #888888; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px;">HR & People Operations</div>
-            </div>
-
-            <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 16px; color: #ffffff;">Welcome to SOMENTM, ${first_name}!</h2>
-            
-            <p style="font-size: 14px; line-height: 1.6; color: #cccccc; margin-bottom: 24px;">
-              You have been registered in the SOMENTM HR Portal as a <strong>${roleDescription}</strong> in the <strong>${department}</strong> team. Please complete your onboarding steps.
-            </p>
-
-            <div style="background: rgba(255,255,255,0.04); border-left: 4px solid #ff3b3b; padding: 16px 20px; border-radius: 8px; margin-bottom: 28px;">
-              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                <tr>
-                  <td style="color: #888888; padding: 6px 0;">SOMENTM ID:</td>
-                  <td style="font-family: monospace; font-weight: 700; color: #ffffff; text-align: right;">${employee_id}</td>
-                </tr>
-                <tr>
-                  <td style="color: #888888; padding: 6px 0;">Department:</td>
-                  <td style="color: #ffffff; text-align: right;">${department}</td>
-                </tr>
-                ${isIntern && cohort ? `
-                <tr>
-                  <td style="color: #888888; padding: 6px 0;">Cohort:</td>
-                  <td style="color: #ffffff; text-align: right;">${cohort}</td>
-                </tr>
-                ` : ''}
-              </table>
-            </div>
-
-            <div style="text-align: center; margin-bottom: 32px;">
-              <a href="${onboardingUrl}" style="background-color: #ff3b3b; color: #ffffff; padding: 14px 32px; text-decoration: none; font-weight: 700; font-size: 14px; border-radius: 10px; display: inline-block;">
-                COMPLETE YOUR ONBOARDING →
-              </a>
-            </div>
-
-            <p style="font-size: 11px; color: #666666; text-align: center; margin-bottom: 24px;">
-              This secure onboarding link is single-use and expires in 7 days.
-            </p>
-
-            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; font-size: 11px; color: #666666; line-height: 1.5;">
-              <p style="margin: 0;"><strong>SOMENTM HR</strong></p>
-              <p style="margin: 2px 0 12px 0;">Vehicle Operations & Emergency Coordination Infrastructure</p>
-              <p style="margin: 0; color: #444444;">This is an automated operational email. Please do not reply directly.</p>
-            </div>
-          </div>
-        `;
-
-        const { error: emailError } = await resend.emails.send({
-          from: "onboarding@resend.dev",
-          to: email,
-          subject,
-          html: emailHtml,
-        }).catch(err => {
-          console.error("Resend request error:", err);
-          return { error: err };
-        });
-
-        if (emailError) {
-          console.error("Resend API error:", emailError);
-        }
-    } else {
-      console.error("RESEND_API_KEY is not configured; onboarding email was not sent.");
-    }
+    const sent = await sendOnboardingEmail(
+      { first_name, email, employee_id, person_type: dbPersonType, employment_type: dbEmploymentType, department, role, cohort },
+      rawToken,
+    );
+    await logAction(actor.id, sent.ok ? "email.onboarding_sent" : "email.onboarding_failed", "person", insertedPerson.id, sent.ok ? undefined : { error: sent.error });
 
     const { revalidatePath } = await import("next/cache");
     revalidatePath("/people");
     revalidatePath("/");
-    redirect("/people");
+    // land on the new profile so HR sees whether the invite went out
+    redirect(`/people/${insertedPerson.id}?email=${sent.ok ? "sent" : "failed"}`);
   }
 
   return (
