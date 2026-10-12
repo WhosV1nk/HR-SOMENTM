@@ -59,17 +59,18 @@ export function Sidebar() {
   }
   
   return (
-    <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 flex-col border-r border-border bg-[#0d0e12]/80 backdrop-blur-xl md:flex">
-      <div className="flex items-center justify-between px-5 pb-4 pt-5">
+    <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-border bg-bg/70 backdrop-blur-xl md:flex">
+      <div className="flex items-center justify-between px-5 pb-6 pt-6">
         <Wordmark sub="HR Portal" />
         <NotificationsBell />
       </div>
 
-      <nav className="flex-1 space-y-4 px-3 overflow-y-auto" aria-label="Primary">
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3" aria-label="Primary">
         {NAV_SECTIONS.map((section, sIdx) => (
-          <div key={sIdx} className="space-y-1">
+          <div key={sIdx} className="space-y-0.5">
             {section.title && (
-              <div className="px-3 text-[10px] font-semibold tracking-[0.18em] text-muted/70 uppercase mb-1">
+              <div className="mb-2 flex items-center gap-2 px-3 font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-faint">
+                <span className="tabular-nums">{String(sIdx).padStart(2, "0")}</span>
                 {section.title}
               </div>
             )}
@@ -80,15 +81,15 @@ export function Sidebar() {
                   key={href}
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={`group flex items-center gap-3 rounded-xl px-3.5 py-2 text-[13px] font-medium transition ${
-                    active 
-                      ? "bg-white/[0.08] text-white shadow-sm light:bg-black/[0.06]" 
-                      : "text-muted hover:bg-white/[0.04] hover:text-white light:hover:bg-black/[0.04]"
+                  className={`group flex items-center gap-3 rounded-full px-3.5 py-2 text-[13.5px] font-medium transition ${
+                    active
+                      ? "bg-white/[0.07] text-text light:bg-black/[0.05]"
+                      : "text-muted hover:bg-white/[0.04] hover:text-text light:hover:bg-black/[0.04]"
                   }`}
                 >
-                  <Icon size={16} className={active ? "text-red-500" : "text-faint transition-colors group-hover:text-white"} />
+                  <Icon size={16} strokeWidth={1.75} className={active ? "text-text" : "text-faint transition-colors group-hover:text-text"} />
                   {label}
-                  {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_#ff4d6d]" />}
+                  {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand shadow-[0_0_8px_rgba(255,59,59,0.8)]" />}
                 </Link>
               );
             })}
@@ -96,18 +97,18 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="space-y-2 border-t border-border/60 p-3 bg-surface/30">
-        <StatusPill label="HR System" detail="live" className="w-full" />
+      <div className="space-y-2 border-t border-border p-3">
+        <div className="px-3 py-1.5">
+          <StatusPill label="HR System" detail="live" />
+        </div>
         <ThemeToggle />
-        
+
         <Show when="signed-in">
-          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-surface-2 border border-border/40">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />
-              <div className="min-w-0 text-xs">
-                <div className="truncate font-semibold text-text">Account</div>
-                <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-emerald-400">Authenticated</div>
-              </div>
+          <div className="flex items-center gap-2.5 rounded-2xl border border-border px-3 py-2.5">
+            <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />
+            <div className="min-w-0 text-xs">
+              <div className="truncate font-medium text-text">Account</div>
+              <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-ok">Signed in</div>
             </div>
           </div>
         </Show>
@@ -115,14 +116,10 @@ export function Sidebar() {
         <Show when="signed-out">
           <div className="flex flex-col gap-1.5 p-1">
             <SignInButton mode="modal">
-              <button className="btn-secondary w-full text-xs py-1.5 justify-center">
-                Sign In
-              </button>
+              <button className="btn-secondary btn-sm w-full">Sign in</button>
             </SignInButton>
             <SignUpButton mode="modal">
-              <button className="btn-primary w-full text-xs py-1.5 justify-center">
-                Sign Up
-              </button>
+              <button className="btn-primary btn-sm w-full">Sign up</button>
             </SignUpButton>
           </div>
         </Show>

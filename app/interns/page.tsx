@@ -1,7 +1,9 @@
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { GraduationCap, Award, Plus, CheckCircle2, Clock } from "lucide-react";
+import { GraduationCap, Award } from "lucide-react";
+import { Avatar, Empty, PageHeader, SectionHead, StatusBadge } from "@/components/ui";
+import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { revalidatePath } from "next/cache";
 
 export default async function InternsPage() {
@@ -48,40 +50,108 @@ export default async function InternsPage() {
   }
 
   return (
-    <div className="p-8 pb-20 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="page-title text-white">Internship Management Engine</h1>
-          <p className="mt-1 text-sm text-muted">Cohort tracking, mentor assignments, task evaluation, and certificate generation.</p>
-        </div>
-        <Link href="/people/new" className="btn-primary flex items-center gap-2">
-          <GraduationCap size={16} /> Register Intern
+    <div className="mx-auto max-w-7xl space-y-14 px-6 pb-24 pt-10 md:px-10">
+      <PageHeader
+        eyebrow="Internship program"
+        title="Interns,"
+        dim="from day one to certificate."
+        description="Cohorts, mentors, task assignments and completion — tracked end to end."
+      >
+        <Link href="/people/new" className="btn-primary">
+          <GraduationCap size={16} /> Register intern
         </Link>
-      </div>
+      </PageHeader>
 
-      {/* Assign Task Card */}
-      <div className="card p-6">
-        <h2 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-          <Plus size={18} className="text-red-400" /> Assign New Task to Intern
-        </h2>
-        <form action={createTask} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Active interns */}
+      <section className="space-y-5">
+        <SectionHead index="01" title="Active interns" description={`${interns?.length || 0} in the program`} />
+        <div className="card overflow-x-auto">
+          <table className="table">
+            <thead>
+              <tr>
+                <th className="!pl-5">Intern</th>
+                <th>Cohort</th>
+                <th>Mentor</th>
+                <th>Timeline</th>
+                <th>Status</th>
+                <th className="!pr-5"><span className="sr-only">Certificate</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {interns && interns.length > 0 ? (
+                interns.map((intern) => (
+                  <tr key={intern.id}>
+                    <td className="!pl-5">
+                      <Link href={`/people/${intern.id}`} className="group flex items-center gap-3">
+                        <Avatar first={intern.first_name} last={intern.last_name} />
+                        <div>
+                          <div className="font-medium text-text transition-colors group-hover:text-brand-2">{intern.first_name} {intern.last_name}</div>
+                          <div className="font-mono text-[11px] text-muted">{intern.employee_id}</div>
+                        </div>
+                      </Link>
+                    </td>
+                    <td>
+                      <div className="text-text">{intern.cohort || "—"}</div>
+                      <div className="text-[12px] text-muted">{intern.department}</div>
+                    </td>
+                    <td>
+                      <form action={assignMentor}>
+                        <input type="hidden" name="intern_id" value={intern.id} />
+                        <AutoSubmitSelect
+                          name="mentor_id"
+                          defaultValue={intern.mentor_id || ""}
+                          aria-label={`Mentor for ${intern.first_name}`}
+                          className="input w-44 rounded-full py-1.5 text-[13px]"
+                        >
+                          <option value="">Unassigned</option>
+                          {mentors?.map(m => (
+                            <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
+                          ))}
+                        </AutoSubmitSelect>
+                      </form>
+                    </td>
+                    <td className="whitespace-nowrap font-mono text-xs text-muted">
+                      {intern.start_date || "—"} → {intern.end_date || "—"}
+                    </td>
+                    <td><StatusBadge status={intern.status} /></td>
+                    <td className="!pr-5 text-right">
+                      <button className="btn-ghost btn-sm">
+                        <Award size={14} /> Certificate
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <Empty colSpan={6}>No active interns.</Empty>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Assign task */}
+      <section className="grid grid-cols-1 gap-8 border-t border-border pt-12 lg:grid-cols-3">
+        <div className="space-y-3">
+          <SectionHead index="02" title="Assign a task" />
+          <p className="max-w-xs text-[13px] leading-relaxed text-muted">Give an intern a deliverable with a due date and priority. It shows up on their profile straight away.</p>
+        </div>
+        <form action={createTask} className="space-y-5 lg:col-span-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <label className="label">Intern</label>
               <select name="intern_id" className="input" required>
-                <option value="">Select Intern</option>
+                <option value="">Select intern</option>
                 {interns?.map(i => (
                   <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">Task Title</label>
-              <input type="text" name="title" className="input" placeholder="e.g. Campaign Analytics Report" required />
+              <label className="label">Task title</label>
+              <input type="text" name="title" className="input" placeholder="e.g. Campaign analytics report" required />
             </div>
             <div>
-              <label className="label">Due Date</label>
+              <label className="label">Due date</label>
               <input type="date" name="due_date" className="input" required />
             </div>
             <div>
@@ -94,113 +164,39 @@ export default async function InternsPage() {
             </div>
           </div>
           <div>
-            <label className="label">Task Description & Deliverables</label>
-            <textarea name="description" rows={2} className="input" placeholder="Enter task objectives and expected outcomes..." required />
+            <label className="label">Description & deliverables</label>
+            <textarea name="description" rows={3} className="input" placeholder="Objectives and expected outcomes…" required />
           </div>
           <div className="flex justify-end">
-            <button type="submit" className="btn-primary">Assign Task</button>
+            <button type="submit" className="btn-primary">Assign task</button>
           </div>
         </form>
-      </div>
+      </section>
 
-      {/* Interns List */}
-      <div className="card overflow-hidden">
-        <div className="p-4 border-b border-border/60 bg-surface-2/40">
-          <h2 className="text-sm font-semibold text-white">Active Interns ({interns?.length || 0})</h2>
-        </div>
-
-        <table className="table w-full">
-          <thead>
-            <tr>
-              <th>Intern</th>
-              <th>Cohort & Focus</th>
-              <th>Mentor</th>
-              <th>Timeline</th>
-              <th>Status</th>
-              <th>Certificate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {interns && interns.length > 0 ? (
-              interns.map((intern) => {
-                const currentMentor = mentors?.find(m => m.id === intern.mentor_id);
-
-                return (
-                  <tr key={intern.id}>
-                    <td>
-                      <div className="font-semibold text-text">{intern.first_name} {intern.last_name}</div>
-                      <div className="text-[11px] text-muted">{intern.employee_id} • {intern.email}</div>
-                    </td>
-                    <td>
-                      <div className="text-text font-medium text-xs">{intern.cohort || "Summer 2026"}</div>
-                      <div className="text-[11px] text-muted">{intern.department}</div>
-                    </td>
-                    <td>
-                      <form action={assignMentor} className="flex items-center gap-2">
-                        <input type="hidden" name="intern_id" value={intern.id} />
-                        <select 
-                          name="mentor_id" 
-                          defaultValue={intern.mentor_id || ""} 
-                          onChange={(e) => e.target.form?.requestSubmit()}
-                          className="bg-surface-3 text-xs rounded-lg px-2 py-1 border border-border text-white focus:outline-none"
-                        >
-                          <option value="">Unassigned</option>
-                          {mentors?.map(m => (
-                            <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
-                          ))}
-                        </select>
-                      </form>
-                    </td>
-                    <td className="font-mono text-xs text-muted">
-                      {intern.start_date || "Jul 17"} $\rightarrow$ {intern.end_date || "Jan 16"}
-                    </td>
-                    <td>
-                      <span className="badge-success">🟢 Active</span>
-                    </td>
-                    <td>
-                      <button className="btn-ghost text-xs py-1 px-2.5 flex items-center gap-1 text-red-400">
-                        <Award size={14} /> Certificate
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-muted">No active interns found.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Intern Tasks Log */}
-      <div className="card p-6">
-        <h2 className="text-base font-semibold text-white mb-4">Task Backlog & Progress</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {tasks && tasks.length > 0 ? (
-            tasks.map(task => (
-              <div key={task.id} className="card p-4 bg-surface-2/60 border border-border/60 space-y-2">
-                <div className="flex justify-between items-start">
-                  <span className="text-xs font-semibold text-white">{task.title}</span>
-                  <span className="badge-secondary text-[10px]">{task.priority}</span>
+      {/* Task backlog */}
+      <section className="space-y-5 border-t border-border pt-12">
+        <SectionHead index="03" title="Task backlog" description={`${tasks?.length || 0} tasks`} />
+        {tasks && tasks.length > 0 ? (
+          <ul className="border-t border-border">
+            {tasks.map((task, i) => (
+              <li key={task.id} className="grid grid-cols-[2rem_1fr] gap-x-4 gap-y-2 border-b border-border py-5 md:grid-cols-[2rem_1.2fr_1.5fr_auto] md:items-baseline">
+                <span className="index pt-1">{String(i + 1).padStart(2, "0")}</span>
+                <div>
+                  <div className="text-[17px] font-medium tracking-tight text-text">{task.title}</div>
+                  <div className="text-[13px] text-muted">{task.people?.first_name} {task.people?.last_name}</div>
                 </div>
-                <div className="text-[11px] text-muted">Assigned to: {task.people?.first_name} {task.people?.last_name}</div>
-                {task.description && (
-                  <p className="text-[11px] text-muted/80 line-clamp-2 italic pt-1">{task.description}</p>
-                )}
-                <div className="flex justify-between items-center pt-2 text-[11px] border-t border-border/40">
-                  <span className="text-muted font-mono">Due: {task.due_date}</span>
-                  <span className="badge-warning text-[10px]">{task.status}</span>
+                <p className="col-start-2 line-clamp-2 text-[13px] leading-relaxed text-muted md:col-start-auto">{task.description}</p>
+                <div className="col-start-2 flex items-center gap-4 md:col-start-auto md:flex-col md:items-end md:gap-1.5">
+                  <StatusBadge status={task.status} />
+                  <span className="font-mono text-[11px] text-faint">Due {task.due_date} · {task.priority}</span>
                 </div>
-              </div>
-            ))
-          ) : (
-            <div className="col-span-3 text-center py-8 text-muted text-xs">No tasks currently assigned.</div>
-          )}
-        </div>
-      </div>
-
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="border-t border-border pt-5 text-[13px] text-muted">No tasks assigned yet.</p>
+        )}
+      </section>
     </div>
   );
 }

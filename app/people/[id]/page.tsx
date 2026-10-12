@@ -4,24 +4,8 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { 
-  ArrowLeft, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  Shield, 
-  Award, 
-  CheckCircle2, 
-  Circle, 
-  FileText, 
-  Edit3, 
-  Clock, 
-  TrendingUp, 
-  CalendarDays,
-  UserX,
-  UserCheck,
-  CheckSquare
-} from "lucide-react";
+import { ArrowUpRight, Mail, Phone, Calendar, CheckCircle2, Circle, Edit3, UserX, UserCheck, CheckSquare } from "lucide-react";
+import { Avatar, PageHeader, SectionHead, Stat, StatusBadge } from "@/components/ui";
 
 export default async function PersonProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -146,323 +130,247 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
 
   const latestReview = reviews && reviews.length > 0 ? reviews[0] : null;
 
+  const isIntern = person.person_type === "Intern";
+  const STATUS_LABEL: Record<string, string> = { Completed: "Internship completed", Terminated: "Inactive" };
+  const details: [string, React.ReactNode][] = [
+    ["SOMENTM ID", <span key="id" className="font-mono">{person.employee_id}</span>],
+    ["Department", <span key="d" className="capitalize">{person.department}</span>],
+    ["Role", person.role],
+    ["Type", person.employment_type || person.person_type],
+    ["Status", <StatusBadge key="s" status={person.status} />],
+    ...(isIntern
+      ? ([
+          ["Cohort", person.cohort || "—"],
+          ["Duration", `${person.start_date || "—"} → ${person.end_date || "—"}`],
+        ] as [string, React.ReactNode][])
+      : []),
+    ...(onboardingSub?.student_id_doc_name
+      ? ([["Student ID", <span key="sid" className="font-mono text-[12px] text-ok">{onboardingSub.student_id_doc_name}</span>]] as [string, React.ReactNode][])
+      : []),
+  ];
+
   return (
-    <div className="p-8 pb-20 max-w-6xl mx-auto space-y-8">
-      {/* Back button & Action Toolbar */}
-      <div className="flex justify-between items-center">
-        <Link href="/people" className="inline-flex items-center gap-2 text-sm text-muted hover:text-white transition-colors">
-          <ArrowLeft size={16} /> Back to Directory
-        </Link>
-        <div className="flex items-center gap-3">
-          <button className="btn-secondary text-xs flex items-center gap-2">
-            <Edit3 size={14} /> Edit Profile
-          </button>
-          
-          {person.status === "Active" ? (
-            <form action={deactivatePersonAction}>
-              <button type="submit" className="btn-ghost text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-1.5">
-                <UserX size={14} /> {person.person_type === "Intern" ? "Complete Internship" : "Deactivate Person"}
-              </button>
-            </form>
-          ) : (
-            <form action={reactivatePersonAction}>
-              <button type="submit" className="btn-ghost text-xs text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1.5">
-                <UserCheck size={14} /> Reactivate Profile
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-12 px-6 pb-24 pt-10 md:px-10">
+      <PageHeader
+        back={{ href: "/people", label: "People" }}
+        eyebrow={`${person.employment_type || person.person_type} · ${person.employee_id}`}
+        title={person.first_name}
+        dim={person.last_name}
+      >
+        <button className="btn-secondary">
+          <Edit3 size={15} /> Edit profile
+        </button>
+        {person.status === "Active" ? (
+          <form action={deactivatePersonAction}>
+            <button type="submit" className="btn-danger">
+              <UserX size={15} /> {isIntern ? "Complete internship" : "Deactivate"}
+            </button>
+          </form>
+        ) : (
+          <form action={reactivatePersonAction}>
+            <button type="submit" className="btn-secondary">
+              <UserCheck size={15} /> Reactivate
+            </button>
+          </form>
+        )}
+      </PageHeader>
 
-      {/* Profile Header Card */}
-      <div className="card p-6 bg-surface/80 relative overflow-hidden border-l-4 border-l-red-500">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="flex items-center gap-5">
-            <div className="h-20 w-20 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-2xl font-bold text-red-400">
-              {person.first_name[0]}{person.last_name[0]}
+      {/* Identity strip */}
+      <section className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-5">
+          <Avatar first={person.first_name} last={person.last_name} size="lg" />
+          <div className="space-y-2">
+            <div className="text-lg font-medium tracking-tight">
+              {person.role} <span className="text-muted">· <span className="capitalize">{person.department}</span></span>
             </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-white">{person.first_name} {person.last_name}</h1>
-                <span className="font-mono text-xs text-muted px-2.5 py-1 bg-surface-3 rounded-lg border border-border">
-                  {person.employee_id}
-                </span>
-              </div>
-              <p className="text-sm text-muted mt-1">{person.role} • <span className="capitalize">{person.department}</span></p>
-              
-              {/* Separate Active Employment Status from Onboarding */}
-              <div className="flex items-center gap-3 mt-3 text-xs">
-                {person.status === "Active" && <span className="badge-success">🟢 Active</span>}
-                {person.status === "Onboarding" && <span className="badge-warning">🟡 Onboarding</span>}
-                {person.status === "Completed" && <span className="badge-secondary">🔵 Internship Completed</span>}
-                {person.status === "Terminated" && <span className="badge-danger">🔴 Inactive / Terminated</span>}
-                
-                <span className="badge-secondary uppercase tracking-wider text-[10px] font-semibold">{person.employment_type || person.person_type}</span>
-                <span className="text-muted text-[11px]">Onboarding: {onboardingPercentage}%</span>
-              </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <StatusBadge status={person.status} label={STATUS_LABEL[person.status]} />
+              <span className="font-mono text-[11px] text-faint">Onboarding {onboardingPercentage}%</span>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-2 text-xs text-muted">
-            <div className="flex items-center gap-2"><Mail size={14} className="text-red-400" /> {person.email}</div>
-            <div className="flex items-center gap-2">
-              <Phone size={14} className="text-red-400" /> 
-              {person.phone || "Phone not added"}
-            </div>
-            <div className="flex items-center gap-2"><Calendar size={14} className="text-red-400" /> Joined {person.joined_date || "2026-10-04"}</div>
           </div>
         </div>
-      </div>
+        <div className="flex flex-col gap-2 text-[13px] text-muted">
+          <div className="flex items-center gap-2.5"><Mail size={14} className="text-faint" /> {person.email}</div>
+          <div className="flex items-center gap-2.5"><Phone size={14} className="text-faint" /> {person.phone || "No phone added"}</div>
+          <div className="flex items-center gap-2.5"><Calendar size={14} className="text-faint" /> Joined {person.joined_date || "—"}</div>
+        </div>
+      </section>
 
-      {/* Main Grid: Info Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Left Column: Employment & Controlled Onboarding */}
-        <div className="space-y-6">
-          <div className="card p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider border-b border-border/40 pb-3">
-              Employment Details
-            </h2>
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between py-1 border-b border-border/20">
-                <span className="text-muted">SOMENTM ID</span>
-                <span className="font-mono font-semibold text-text">{person.employee_id}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-border/20">
-                <span className="text-muted">Department</span>
-                <span className="font-medium text-text capitalize">{person.department}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-border/20">
-                <span className="text-muted">Role</span>
-                <span className="font-medium text-text">{person.role}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-border/20">
-                <span className="text-muted">Type</span>
-                <span className="font-medium text-text">{person.employment_type || person.person_type}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-border/20">
-                <span className="text-muted">Employment Status</span>
-                <span className={`font-semibold ${person.status === 'Active' ? 'text-emerald-400' : 'text-amber-400'}`}>{person.status}</span>
-              </div>
-              {person.person_type === "Intern" && (
-                <>
-                  <div className="flex justify-between py-1 border-b border-border/20">
-                    <span className="text-muted">Cohort</span>
-                    <span className="font-medium text-text">{person.cohort || "Summer 2026"}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-border/20">
-                    <span className="text-muted">Duration</span>
-                    <span className="font-medium text-text">{person.start_date || "Jul 17"} to {person.end_date || "Jan 16"}</span>
-                  </div>
-                </>
-              )}
-              {onboardingSub?.student_id_doc_name && (
-                <div className="flex justify-between py-1 border-b border-border/20 items-center">
-                  <span className="text-muted">Student ID</span>
-                  <span className="font-mono text-emerald-400 flex items-center gap-1 text-[11px]">
-                    📄 {onboardingSub.student_id_doc_name}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+      <section className="stat-strip">
+        <Stat label="Present rate" value={attRate} unit={attRate !== "—" ? "%" : undefined} hint={`Last ${totalAtt} records`} />
+        <Stat label="Late" value={lateCount} />
+        <Stat label="Absent" value={absentCount} />
+        <Stat
+          label="Latest KPI"
+          value={latestReview ? Math.round(latestReview.overall_score) : "—"}
+          unit={latestReview ? "/ 100" : undefined}
+          hint={latestReview ? latestReview.period : "No reviews yet"}
+        />
+      </section>
 
-          {/* Controlled Onboarding Workflow */}
-          <div className="card p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-border/40 pb-3">
-              <h2 className="text-sm font-semibold text-white uppercase tracking-wider">
-                Onboarding Checklist
-              </h2>
-              <span className="text-xs font-mono font-bold text-amber-400">{completedCount}/7 ({onboardingPercentage}%)</span>
-            </div>
-            <div className="w-full bg-surface-3 rounded-full h-2">
-              <div className="bg-amber-400 h-2 rounded-full transition-all" style={{ width: `${onboardingPercentage}%` }}></div>
-            </div>
-            
-            <div className="space-y-2.5 text-xs">
-              {onboardingChecklist.map((stage, idx) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <div className={`flex items-center gap-2 ${stage.done ? 'text-emerald-400' : 'text-muted'}`}>
-                    {stage.done ? <CheckCircle2 size={14} /> : <Circle size={14} />}
-                    <span>{stage.label}</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-muted/60">{stage.owner}</span>
+      <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
+        {/* Left column */}
+        <div className="space-y-12">
+          <section className="space-y-4">
+            <SectionHead index="01" title="Employment" />
+            <dl className="border-t border-border text-[13px]">
+              {details.map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between gap-4 border-b border-border py-3">
+                  <dt className="text-muted">{k}</dt>
+                  <dd className="text-right text-text">{v}</dd>
                 </div>
               ))}
-            </div>
+            </dl>
+          </section>
 
-            {/* Onboarding Token Link (for Candidate self-service or HR copy) */}
+          <section className="space-y-4">
+            <SectionHead index="02" title="Onboarding">
+              <span className="font-mono text-[12px] tabular-nums text-muted">{completedCount}/{onboardingChecklist.length}</span>
+            </SectionHead>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-surface-3">
+              <div className="h-full rounded-full bg-gradient-to-r from-brand to-brand-2 transition-all" style={{ width: `${onboardingPercentage}%` }} />
+            </div>
+            <ul className="space-y-2.5 pt-1 text-[13px]">
+              {onboardingChecklist.map((stage, idx) => (
+                <li key={idx} className="flex items-start justify-between gap-3">
+                  <span className={`flex items-start gap-2.5 ${stage.done ? "text-text" : "text-muted"}`}>
+                    {stage.done ? <CheckCircle2 size={15} className="mt-px shrink-0 text-ok" /> : <Circle size={15} className="mt-px shrink-0 text-faint" />}
+                    {stage.label}
+                  </span>
+                  <span className="index mt-0.5 uppercase">{stage.owner}</span>
+                </li>
+              ))}
+            </ul>
+
             {activeToken ? (
-              <div className="p-3 bg-surface-2 rounded-lg border border-border/40 text-xs space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] uppercase font-semibold text-muted tracking-wider">Candidate Portal Link:</span>
-                  {onboardingTok?.used && (
-                    <span className="text-[10px] text-emerald-400 font-medium">Submitted</span>
-                  )}
+              <div className="card-2 space-y-2 p-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="label !mb-0">Candidate portal link</span>
+                  {onboardingTok?.used && <span className="badge-ok">Submitted</span>}
                 </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    readOnly 
-                    value={`/onboarding/${activeToken}`} 
-                    className="bg-surface-3 text-[11px] font-mono px-2 py-1 rounded w-full border border-border/40 text-muted" 
-                  />
-                  <Link 
-                    href={`/onboarding/${activeToken}`} 
-                    target="_blank"
-                    className="text-xs text-red-400 font-semibold shrink-0 hover:underline"
-                  >
-                    Open →
+                <div className="flex items-center gap-3">
+                  <input readOnly value={`/onboarding/${activeToken}`} className="input py-1.5 font-mono text-[11px] text-muted" />
+                  <Link href={`/onboarding/${activeToken}`} target="_blank" className="link shrink-0">
+                    Open <ArrowUpRight size={14} />
                   </Link>
                 </div>
               </div>
             ) : null}
 
-            {/* Complete Onboarding HR Action Button */}
             {person.status === "Onboarding" && (
-              <div className="pt-2 border-t border-border/40">
+              <div className="space-y-2 pt-2">
                 <form action={completeOnboardingAction}>
-                  <button 
-                    type="submit" 
-                    disabled={!isReadyToComplete}
-                    className={`btn-primary w-full justify-center text-xs py-2 flex items-center gap-2 ${
-                      !isReadyToComplete ? 'opacity-50 cursor-not-allowed bg-surface-3 text-muted border-border hover:bg-surface-3' : ''
-                    }`}
-                  >
-                    <CheckSquare size={14} /> Complete Onboarding & Activate
+                  <button type="submit" disabled={!isReadyToComplete} className="btn-primary w-full">
+                    <CheckSquare size={15} /> Complete onboarding & activate
                   </button>
                 </form>
                 {!isReadyToComplete && (
-                  <p className="text-[10px] text-muted text-center mt-2">
-                    Candidate must complete portal submission before activation.
-                  </p>
+                  <p className="text-center text-[12px] text-muted">The candidate needs to finish the portal submission first.</p>
                 )}
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Leave Summary */}
-          <div className="card p-5 space-y-3">
-            <div className="flex justify-between items-center border-b border-border/40 pb-2">
-              <h2 className="text-sm font-semibold text-white">Leave Balance</h2>
-              <Link href="/leave" className="text-xs text-red-400">View All</Link>
+          <section className="space-y-4">
+            <SectionHead index="03" title="Leave balance" href="/leave" hrefLabel="All leave" />
+            <div className="grid grid-cols-3 border-y border-border">
+              {[
+                ["Casual", 8, 12],
+                ["Sick", 6, 10],
+                ["Earned", 12, 18],
+              ].map(([label, used, total], i) => (
+                <div key={label} className={`py-4 ${i ? "border-l border-border pl-4" : ""}`}>
+                  <div className="label">{label}</div>
+                  <div className="display text-2xl tabular-nums">
+                    {used}<span className="stat-unit">/ {total}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="p-2 rounded-lg bg-surface-2">
-                <div className="text-muted text-[10px]">Casual</div>
-                <div className="font-bold text-text mt-1">8 / 12</div>
-              </div>
-              <div className="p-2 rounded-lg bg-surface-2">
-                <div className="text-muted text-[10px]">Sick</div>
-                <div className="font-bold text-text mt-1">6 / 10</div>
-              </div>
-              <div className="p-2 rounded-lg bg-surface-2">
-                <div className="text-muted text-[10px]">Earned</div>
-                <div className="font-bold text-text mt-1">12 / 18</div>
-              </div>
-            </div>
-          </div>
+          </section>
         </div>
 
-        {/* Right Column: Attendance, Performance & Tasks */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Attendance Summary & History Table */}
-          <div className="card overflow-hidden">
-            <div className="p-4 border-b border-border/50 flex justify-between items-center">
-              <div>
-                <h2 className="text-sm font-semibold text-white">Attendance Summary & Logs</h2>
-                <div className="text-xs text-muted flex items-center gap-3 mt-1">
-                  <span>Present Rate: <strong className="text-emerald-400">{attRate}{attRate !== "—" ? "%" : ""}</strong></span>
-                  <span>Late: <strong className="text-amber-400">{lateCount}</strong></span>
-                  <span>Absent: <strong className="text-rose-400">{absentCount}</strong></span>
-                </div>
-              </div>
-              <Link href="/attendance" className="text-xs text-red-400">Full Attendance Log</Link>
-            </div>
-            <table className="table w-full">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Check-in</th>
-                  <th>Check-out</th>
-                  <th>Method</th>
-                </tr>
-              </thead>
-              <tbody>
-                {attendance && attendance.length > 0 ? (
-                  attendance.map(a => (
-                    <tr key={a.id}>
-                      <td className="font-mono text-xs">{a.date}</td>
-                      <td>
-                        {a.status === "Present" && <span className="badge-success">🟢 Present</span>}
-                        {a.status === "Late" && <span className="badge-warning">🟡 Late</span>}
-                        {a.status === "Absent" && <span className="badge-danger">🔴 Absent</span>}
-                      </td>
-                      <td className="font-mono text-xs">{a.check_in || "—"}</td>
-                      <td className="font-mono text-xs">{a.check_out || "—"}</td>
-                      <td className="text-muted text-xs">{a.method || "HR Manual"}</td>
-                    </tr>
-                  ))
-                ) : (
+        {/* Right column */}
+        <div className="space-y-12 lg:col-span-2">
+          <section className="space-y-5">
+            <SectionHead index="04" title="Attendance" description="Most recent ten days" href="/attendance" hrefLabel="Full log" />
+            <div className="card overflow-x-auto">
+              <table className="table">
+                <thead>
                   <tr>
-                    <td colSpan={5} className="text-center py-6 text-muted">No attendance recorded yet.</td>
+                    <th className="!pl-5">Date</th>
+                    <th>Status</th>
+                    <th>In</th>
+                    <th>Out</th>
+                    <th className="!pr-5">Method</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Performance Summary Card */}
-          <div className="card p-5 space-y-3">
-            <div className="flex justify-between items-center border-b border-border/40 pb-2">
-              <h2 className="text-sm font-semibold text-white">Performance Overview</h2>
-              <Link href="/performance" className="text-xs text-red-400">View Reviews</Link>
+                </thead>
+                <tbody>
+                  {attendance && attendance.length > 0 ? (
+                    attendance.map(a => (
+                      <tr key={a.id}>
+                        <td className="!pl-5 font-mono text-xs">{a.date}</td>
+                        <td><StatusBadge status={a.status} /></td>
+                        <td className="font-mono text-xs">{a.check_in || "—"}</td>
+                        <td className="font-mono text-xs">{a.check_out || "—"}</td>
+                        <td className="!pr-5 text-muted">{a.method || "HR Manual"}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="!border-b-0 py-10 text-center text-[13px] text-muted">No attendance recorded yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
+          </section>
+
+          <section className="space-y-5">
+            <SectionHead index="05" title="Performance" href="/performance" hrefLabel="All reviews" />
             {latestReview ? (
-              <div className="flex justify-between items-center">
+              <div className="grid grid-cols-1 gap-4 border-y border-border py-6 md:grid-cols-[10rem_1fr] md:gap-8">
                 <div>
-                  <div className="text-xs text-muted">Period: {latestReview.period}</div>
-                  <div className="text-sm font-medium text-text mt-1">{latestReview.summary}</div>
+                  <div className="display text-5xl tabular-nums">
+                    {Math.round(latestReview.overall_score)}<span className="stat-unit">/ 100</span>
+                  </div>
+                  <div className="mt-1 font-mono text-[11px] text-faint">{latestReview.period}</div>
                 </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-red-400 font-mono">{latestReview.overall_score}%</div>
-                  <span className="badge-success">🟢 {latestReview.rating}</span>
+                <div className="space-y-3">
+                  <StatusBadge status={latestReview.rating} />
+                  <p className="text-[14px] leading-relaxed text-muted">{latestReview.summary}</p>
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-muted text-center py-4">No performance evaluations submitted yet.</div>
+              <p className="border-t border-border pt-5 text-[13px] text-muted">No performance reviews yet.</p>
             )}
-          </div>
+          </section>
 
-          {/* Tasks (If Intern) */}
-          {person.person_type === "Intern" && (
-            <div className="card p-5 space-y-4">
-              <div className="flex justify-between items-center border-b border-border/40 pb-3">
-                <h2 className="text-sm font-semibold text-white">Assigned Tasks ({tasks?.length || 0})</h2>
-                <Link href="/interns" className="text-xs text-red-400">Task Engine</Link>
-              </div>
-              <div className="space-y-3">
-                {tasks && tasks.length > 0 ? (
-                  tasks.map(t => (
-                    <div key={t.id} className="p-3 rounded-xl bg-surface-2 border border-border/50 flex justify-between items-center">
-                      <div>
-                        <div className="font-medium text-text text-xs">{t.title}</div>
-                        {t.description && <div className="text-[11px] text-muted italic line-clamp-1">{t.description}</div>}
-                        <div className="text-[10px] text-muted font-mono mt-1">Due: {t.due_date}</div>
+          {isIntern && (
+            <section className="space-y-5">
+              <SectionHead index="06" title="Assigned tasks" description={`${tasks?.length || 0} tasks`} href="/interns" hrefLabel="Task engine" />
+              {tasks && tasks.length > 0 ? (
+                <ul className="border-t border-border">
+                  {tasks.map((t, i) => (
+                    <li key={t.id} className="grid grid-cols-[2rem_1fr_auto] items-baseline gap-x-4 border-b border-border py-4">
+                      <span className="index">{String(i + 1).padStart(2, "0")}</span>
+                      <div className="min-w-0">
+                        <div className="font-medium text-text">{t.title}</div>
+                        {t.description && <div className="line-clamp-1 text-[13px] text-muted">{t.description}</div>}
                       </div>
-                      <span className="badge-secondary">{t.status}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-6 text-muted text-xs">No active tasks assigned.</div>
-                )}
-              </div>
-            </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <StatusBadge status={t.status} />
+                        <span className="font-mono text-[11px] text-faint">Due {t.due_date}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="border-t border-border pt-5 text-[13px] text-muted">No tasks assigned.</p>
+              )}
+            </section>
           )}
-
         </div>
-
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
-import { FileText, Plus } from "lucide-react";
+import { FileText } from "lucide-react";
+import { PageHeader, SectionHead } from "@/components/ui";
 import { revalidatePath } from "next/cache";
 
 export default async function ReportsPage() {
@@ -34,22 +35,50 @@ export default async function ReportsPage() {
   }
 
   return (
-    <div className="p-8 pb-20 max-w-5xl mx-auto space-y-8">
-      <div>
-        <h1 className="page-title text-text">Employee Reports & Reviews</h1>
-        <p className="mt-2 text-muted">Performance tracking and quarterly reports for team members.</p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-14 px-6 pb-24 pt-10 md:px-10">
+      <PageHeader
+        eyebrow="Reports"
+        title="Quarterly reports,"
+        dim="on the record."
+        description="Period summaries and KPI scores for each team member."
+      />
 
-      <div className="card p-6">
-        <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
-          <Plus size={18} /> Submit Performance Report
-        </h2>
-        <form action={createReport} className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+      <section className="space-y-5">
+        <SectionHead index="01" title="Recent reports" description={`${reports?.length || 0} submitted`} />
+        {reports && reports.length > 0 ? (
+          <ul className="border-t border-border">
+            {reports.map((report: any) => (
+              <li key={report.id} className="grid grid-cols-1 gap-4 border-b border-border py-7 md:grid-cols-[10rem_1fr_1.4fr] md:gap-8">
+                <div>
+                  <div className="display text-5xl tabular-nums">
+                    {report.kpi_score}<span className="stat-unit">/ 100</span>
+                  </div>
+                  <div className="mt-1 font-mono text-[11px] text-faint">{report.report_period}</div>
+                </div>
+                <div>
+                  <div className="text-xl font-medium tracking-tight">{report.employees?.first_name} {report.employees?.last_name}</div>
+                  <div className="mt-0.5 text-[13px] text-muted">{report.employees?.role}</div>
+                </div>
+                <p className="text-[14px] leading-relaxed text-muted">{report.summary}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="border-t border-border pt-5 text-[13px] text-muted">No reports submitted yet.</p>
+        )}
+      </section>
+
+      <section className="grid grid-cols-1 gap-8 border-t border-border pt-12 lg:grid-cols-3">
+        <div className="space-y-3">
+          <SectionHead index="02" title="Submit a report" />
+          <p className="max-w-xs text-[13px] leading-relaxed text-muted">A period summary with key achievements and a single KPI score.</p>
+        </div>
+        <form action={createReport} className="space-y-5 lg:col-span-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             <div>
               <label className="label">Employee</label>
               <select name="employee_id" className="input" required>
-                <option value="">Select Employee</option>
+                <option value="">Select employee</option>
                 {employees?.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.first_name} {emp.last_name} ({emp.role})
@@ -58,53 +87,25 @@ export default async function ReportsPage() {
               </select>
             </div>
             <div>
-              <label className="label">Report Period</label>
+              <label className="label">Period</label>
               <input type="text" name="report_period" className="input" placeholder="e.g. Q3 2026" required />
             </div>
             <div>
-              <label className="label">KPI Score (0-100)</label>
-              <input type="number" name="kpi_score" min="0" max="100" className="input" placeholder="e.g. 92" required />
+              <label className="label">KPI score</label>
+              <input type="number" name="kpi_score" min="0" max="100" className="input tabular-nums" placeholder="0–100" required />
             </div>
           </div>
           <div>
-            <label className="label">Summary & Key Achievements</label>
-            <textarea name="summary" rows={3} className="input" placeholder="Enter performance review notes..." required />
+            <label className="label">Summary & key achievements</label>
+            <textarea name="summary" rows={3} className="input" placeholder="Review notes…" required />
           </div>
           <div className="flex justify-end">
             <button type="submit" className="btn-primary">
-              <FileText size={16} /> Submit Report
+              <FileText size={16} /> Submit report
             </button>
           </div>
         </form>
-      </div>
-
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-text">Recent Reports</h2>
-        <div className="grid grid-cols-1 gap-4">
-          {reports && reports.length > 0 ? (
-            reports.map((report: any) => (
-              <div key={report.id} className="card p-5 flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="font-semibold text-text">
-                      {report.employees?.first_name} {report.employees?.last_name}
-                    </span>
-                    <span className="badge-secondary">{report.employees?.role}</span>
-                    <span className="badge-secondary">{report.report_period}</span>
-                  </div>
-                  <p className="text-sm text-muted mt-2">{report.summary}</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-red-500">{report.kpi_score}%</div>
-                  <div className="text-xs text-muted">KPI Score</div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="card p-8 text-center text-muted">No reports submitted yet.</div>
-          )}
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

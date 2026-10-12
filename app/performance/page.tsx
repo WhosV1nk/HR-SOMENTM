@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
-import { TrendingUp, Award, Plus, Star } from "lucide-react";
+import { PageHeader, SectionHead, StatusBadge } from "@/components/ui";
 import { revalidatePath } from "next/cache";
 
 export default async function PerformancePage() {
@@ -59,109 +59,91 @@ export default async function PerformancePage() {
     revalidatePath("/performance");
   }
 
-  return (
-    <div className="p-8 pb-20 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="page-title text-white">Performance & Structured KPIs</h1>
-        <p className="mt-1 text-sm text-muted">Defensible weighted performance reviews and objective scoring models.</p>
-      </div>
+  const SCORES = [
+    { name: "task_completion_score", label: "Task completion", weight: "30%" },
+    { name: "quality_score", label: "Quality", weight: "25%" },
+    { name: "attendance_score", label: "Attendance", weight: "15%" },
+    { name: "communication_score", label: "Communication", weight: "15%" },
+    { name: "initiative_score", label: "Initiative", weight: "15%" },
+  ];
 
-      {/* Submit Structured Review */}
-      <div className="card p-6">
-        <h2 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-          <Plus size={18} className="text-red-400" /> Submit Category Evaluation
-        </h2>
-        <form action={submitPerformanceReview} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  return (
+    <div className="mx-auto max-w-7xl space-y-14 px-6 pb-24 pt-10 md:px-10">
+      <PageHeader
+        eyebrow="Performance"
+        title="Reviews,"
+        dim="weighted and defensible."
+        description="Five scored categories roll up into one overall KPI, so every rating can be explained."
+      />
+
+      <section className="space-y-5">
+        <SectionHead index="01" title="Scorecards" description={`${reviews?.length || 0} reviews`} />
+        {reviews && reviews.length > 0 ? (
+          <ul className="border-t border-border">
+            {reviews.map((r: any) => (
+              <li key={r.id} className="grid grid-cols-1 gap-4 border-b border-border py-7 md:grid-cols-[10rem_1fr_1.4fr] md:gap-8">
+                <div>
+                  <div className="display text-5xl tabular-nums">
+                    {Math.round(r.overall_score)}<span className="stat-unit">/ 100</span>
+                  </div>
+                  <div className="mt-1 font-mono text-[11px] text-faint">{r.period}</div>
+                </div>
+                <div>
+                  <div className="text-xl font-medium tracking-tight">{r.people?.first_name} {r.people?.last_name}</div>
+                  <div className="mt-0.5 text-[13px] text-muted">{r.people?.role}</div>
+                  <div className="mt-3"><StatusBadge status={r.rating} /></div>
+                </div>
+                <p className="text-[14px] leading-relaxed text-muted">{r.summary}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="border-t border-border pt-5 text-[13px] text-muted">No reviews submitted yet.</p>
+        )}
+      </section>
+
+      <section className="grid grid-cols-1 gap-8 border-t border-border pt-12 lg:grid-cols-3">
+        <div className="space-y-3">
+          <SectionHead index="02" title="Submit a review" />
+          <p className="max-w-xs text-[13px] leading-relaxed text-muted">
+            Score each category 0–100. The overall KPI is weighted: task 30%, quality 25%, attendance, communication and initiative 15% each.
+          </p>
+        </div>
+        <form action={submitPerformanceReview} className="space-y-5 lg:col-span-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <label className="label">Person</label>
               <select name="person_id" className="input" required>
-                <option value="">Select Employee/Intern</option>
+                <option value="">Select employee or intern</option>
                 {people?.map(p => (
                   <option key={p.id} value={p.id}>{p.first_name} {p.last_name} ({p.role})</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">Evaluation Period</label>
+              <label className="label">Period</label>
               <input type="text" name="period" className="input" placeholder="e.g. Q3 2026" required />
             </div>
-            <div>
-              <label className="label">Task Completion Score (30%)</label>
-              <input type="number" name="task_completion_score" min="0" max="100" className="input" placeholder="0-100" required />
-            </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="label">Quality Score (25%)</label>
-              <input type="number" name="quality_score" min="0" max="100" className="input" placeholder="0-100" required />
-            </div>
-            <div>
-              <label className="label">Attendance Score (15%)</label>
-              <input type="number" name="attendance_score" min="0" max="100" className="input" placeholder="0-100" required />
-            </div>
-            <div>
-              <label className="label">Communication Score (15%)</label>
-              <input type="number" name="communication_score" min="0" max="100" className="input" placeholder="0-100" required />
-            </div>
-            <div>
-              <label className="label">Initiative Score (15%)</label>
-              <input type="number" name="initiative_score" min="0" max="100" className="input" placeholder="0-100" required />
-            </div>
+          <div className="grid grid-cols-2 gap-5 md:grid-cols-5">
+            {SCORES.map((sc) => (
+              <div key={sc.name}>
+                <label className="label">
+                  {sc.label} <span className="text-faint">· {sc.weight}</span>
+                </label>
+                <input type="number" name={sc.name} min="0" max="100" className="input tabular-nums" placeholder="0–100" required />
+              </div>
+            ))}
           </div>
-
           <div>
-            <label className="label">Executive Summary / Feedback</label>
-            <textarea name="summary" rows={2} className="input" placeholder="Enter evaluation notes..." required />
+            <label className="label">Summary & feedback</label>
+            <textarea name="summary" rows={3} className="input" placeholder="Evaluation notes…" required />
           </div>
-
           <div className="flex justify-end">
-            <button type="submit" className="btn-primary">Calculate & Submit Review</button>
+            <button type="submit" className="btn-primary">Calculate & submit</button>
           </div>
         </form>
-      </div>
-
-      {/* Reviews Table */}
-      <div className="card overflow-hidden">
-        <div className="p-4 border-b border-border/60 bg-surface-2/40">
-          <h2 className="text-sm font-semibold text-white">Performance Scorecards</h2>
-        </div>
-        <table className="table w-full">
-          <thead>
-            <tr>
-              <th>Person</th>
-              <th>Period</th>
-              <th>Overall KPI Score</th>
-              <th>Rating</th>
-              <th>Summary</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reviews && reviews.length > 0 ? (
-              reviews.map((r: any) => (
-                <tr key={r.id}>
-                  <td>
-                    <div className="font-semibold text-text">{r.people?.first_name} {r.people?.last_name}</div>
-                    <div className="text-[11px] text-muted">{r.people?.role}</div>
-                  </td>
-                  <td><span className="badge-secondary">{r.period}</span></td>
-                  <td className="font-bold text-base text-red-400 font-mono">{r.overall_score}%</td>
-                  <td>
-                    <span className="badge-success">🟢 {r.rating}</span>
-                  </td>
-                  <td className="text-xs text-muted max-w-sm truncate">{r.summary}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5} className="text-center py-10 text-muted">No evaluations submitted yet.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      </section>
     </div>
   );
 }

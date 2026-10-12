@@ -1,4 +1,5 @@
-import { UserPlus, ArrowLeft } from "lucide-react";
+import { UserPlus } from "lucide-react";
+import { PageHeader, SectionHead } from "@/components/ui";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
@@ -187,41 +188,56 @@ export default async function NewPersonPage({
   }
 
   return (
-    <div className="p-8 pb-20 max-w-3xl mx-auto">
-      <div className="mb-8">
-        <Link href="/people" className="inline-flex items-center gap-2 text-sm text-muted hover:text-white mb-4 transition-colors">
-          <ArrowLeft size={16} /> Back to People Directory
-        </Link>
-        <h1 className="page-title text-white">Add New Person</h1>
-        <p className="mt-2 text-muted">Register a new employee, intern, or contractor to the SOMENTM team.</p>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-12 px-6 pb-24 pt-10 md:px-10">
+      <PageHeader
+        back={{ href: "/people", label: "People" }}
+        eyebrow="New person"
+        title="Add someone"
+        dim="to the team."
+        description="They get a SOMENTM ID and a secure, single-use onboarding link by email."
+      />
 
-      <div className="card p-6">
-        {error === "email-exists" && (
-          <p role="alert" className="mb-5 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-            This email address already exists. Use a different email or check the People directory.
-          </p>
-        )}
-        <form action={addPerson} className="space-y-6">
-          <div className="grid grid-cols-2 gap-6">
+      {error === "email-exists" && (
+        <p role="alert" className="flex items-center gap-2.5 rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-text">
+          <span className="live-dot danger" /> That email is already registered. Use a different one or find them in People.
+        </p>
+      )}
+      {error === "insert-failed" && (
+        <p role="alert" className="flex items-center gap-2.5 rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-text">
+          <span className="live-dot danger" /> Couldn&apos;t save this person. Please try again.
+        </p>
+      )}
+
+      <form action={addPerson} className="space-y-12">
+        <section className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="space-y-3">
+            <SectionHead index="01" title="Identity" />
+            <p className="max-w-xs text-[13px] leading-relaxed text-muted">Name and the email their invite goes to.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:col-span-2">
             <div>
-              <label className="label">First Name</label>
+              <label className="label">First name</label>
               <input type="text" name="first_name" className="input" placeholder="e.g. Vinayak" required />
             </div>
             <div>
-              <label className="label">Last Name</label>
+              <label className="label">Last name</label>
               <input type="text" name="last_name" className="input" placeholder="e.g. Sharma" required />
             </div>
+            <div className="md:col-span-2">
+              <label className="label">Email</label>
+              <input type="email" name="email" className="input" placeholder="name@somentm.com" required />
+            </div>
           </div>
+        </section>
 
-          <div>
-            <label className="label">Email Address</label>
-            <input type="email" name="email" className="input" placeholder="vinayak@somentm.com" required />
+        <section className="grid grid-cols-1 gap-8 border-t border-border pt-12 lg:grid-cols-3">
+          <div className="space-y-3">
+            <SectionHead index="02" title="Role" />
+            <p className="max-w-xs text-[13px] leading-relaxed text-muted">How they&apos;re employed and where they sit.</p>
           </div>
-
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:col-span-2">
             <div>
-              <label className="label">Person Type</label>
+              <label className="label">Person type</label>
               <select name="person_type" className="input" required>
                 <option value="Founder">Founder</option>
                 <option value="Employee">Employee</option>
@@ -230,7 +246,7 @@ export default async function NewPersonPage({
               </select>
             </div>
             <div>
-              <label className="label">Employment Type</label>
+              <label className="label">Employment type</label>
               <select name="employment_type" className="input">
                 <option value="Founder">Founder</option>
                 <option value="Full-time">Full-time</option>
@@ -238,9 +254,6 @@ export default async function NewPersonPage({
                 <option value="Contractor">Contractor</option>
               </select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
             <div>
               <label className="label">Department</label>
               <select name="department" className="input" required>
@@ -252,38 +265,40 @@ export default async function NewPersonPage({
               </select>
             </div>
             <div>
-              <label className="label">Role Title</label>
+              <label className="label">Role title</label>
               <input type="text" name="role" className="input" placeholder="e.g. Chief Executive Officer" required />
             </div>
           </div>
+        </section>
 
-          {/* Intern specifics optional fields */}
-          <div className="border-t border-border/40 pt-4 space-y-4">
-            <h3 className="eyebrow">Internship Details (If Intern)</h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="label">Cohort</label>
-                <input type="text" name="cohort" className="input" placeholder="e.g. Summer 2026" />
-              </div>
-              <div>
-                <label className="label">Start Date</label>
-                <input type="date" name="start_date" className="input" />
-              </div>
-              <div>
-                <label className="label">End Date</label>
-                <input type="date" name="end_date" className="input" />
-              </div>
+        <section className="grid grid-cols-1 gap-8 border-t border-border pt-12 lg:grid-cols-3">
+          <div className="space-y-3">
+            <SectionHead index="03" title="Internship" />
+            <p className="max-w-xs text-[13px] leading-relaxed text-muted">Only for interns — leave blank otherwise.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3 lg:col-span-2">
+            <div>
+              <label className="label">Cohort</label>
+              <input type="text" name="cohort" className="input" placeholder="e.g. Summer 2026" />
+            </div>
+            <div>
+              <label className="label">Start date</label>
+              <input type="date" name="start_date" className="input" />
+            </div>
+            <div>
+              <label className="label">End date</label>
+              <input type="date" name="end_date" className="input" />
             </div>
           </div>
+        </section>
 
-          <div className="pt-4 border-t border-border flex justify-end gap-3">
-            <Link href="/people" className="btn-ghost">Cancel</Link>
-            <button type="submit" className="btn-primary flex items-center gap-2">
-              <UserPlus size={16} /> Save & Send Invite
-            </button>
-          </div>
-        </form>
-      </div>
+        <div className="flex justify-end gap-3 border-t border-border pt-8">
+          <Link href="/people" className="btn-ghost">Cancel</Link>
+          <button type="submit" className="btn-primary">
+            <UserPlus size={16} /> Save & send invite
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

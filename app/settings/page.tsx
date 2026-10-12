@@ -1,32 +1,33 @@
-import { Settings as SettingsIcon, Shield, Building, Bell } from "lucide-react";
+import { Shield, Building, Bell } from "lucide-react";
+import { PageHeader } from "@/components/ui";
+
+const SECTIONS = [
+  { icon: Building, title: "Organization", body: "Company name, logo, timezone and the working-hours threshold (09:00)." },
+  { icon: Shield, title: "Roles & permissions", body: "Access for Super Admin, HR Admin, Manager, Employee and Intern." },
+  { icon: Bell, title: "Notifications", body: "Invitation emails via Resend and in-app action alerts." },
+];
 
 export default function SettingsPage() {
   return (
-    <div className="p-8 pb-20 max-w-5xl mx-auto space-y-8">
-      <div>
-        <h1 className="page-title text-white">System Settings</h1>
-        <p className="mt-1 text-sm text-muted">Configure SOMENTM organization policies, working hours, and access permissions.</p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-12 px-6 pb-24 pt-10 md:px-10">
+      <PageHeader
+        eyebrow="System"
+        title="Settings,"
+        dim="for the whole organization."
+        description="Policies, working hours and who can see what."
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card p-5 space-y-3 border-l-4 border-l-red-500">
-          <Building className="text-red-400" size={24} />
-          <h2 className="text-base font-semibold text-white">Organization Details</h2>
-          <p className="text-xs text-muted">Company name, logo, timezone, and working hours threshold (09:00 AM).</p>
-        </div>
-
-        <div className="card p-5 space-y-3 border-l-4 border-l-blue-500">
-          <Shield className="text-blue-400" size={24} />
-          <h2 className="text-base font-semibold text-white">Roles & Permissions</h2>
-          <p className="text-xs text-muted">Configure access rights for Super Admin, HR Admin, Manager, Employee, and Intern.</p>
-        </div>
-
-        <div className="card p-5 space-y-3 border-l-4 border-l-purple-500">
-          <Bell className="text-purple-400" size={24} />
-          <h2 className="text-base font-semibold text-white">Notifications & Alerts</h2>
-          <p className="text-xs text-muted">Email invitation triggers via Resend and system action notifications.</p>
-        </div>
-      </div>
+      <ul className="border-t border-border">
+        {SECTIONS.map(({ icon: Icon, title, body }, i) => (
+          <li key={title} className="grid grid-cols-[2rem_1fr] items-baseline gap-x-4 border-b border-border py-7 md:grid-cols-[2rem_18rem_1fr]">
+            <span className="index">{String(i + 1).padStart(2, "0")}</span>
+            <h2 className="flex items-center gap-3 text-2xl font-medium tracking-tight">
+              <Icon size={18} strokeWidth={1.75} className="text-faint" /> {title}
+            </h2>
+            <p className="col-start-2 mt-2 text-[14px] leading-relaxed text-muted md:col-start-auto md:mt-0">{body}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

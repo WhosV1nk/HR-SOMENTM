@@ -1,13 +1,18 @@
 import { SignIn } from "@clerk/nextjs";
+import { IrisBackdrop, Wordmark } from "@/components/wordmark";
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-6 bg-[#090a0c]">
-      <div className="mb-6 text-center space-y-1">
-        <span className="text-2xl font-black tracking-[0.25em] text-red-500">SOMENTM</span>
-        <div className="text-[10px] uppercase tracking-[0.2em] text-muted">HR Command Center • Admin Portal</div>
+    <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden p-6">
+      <IrisBackdrop />
+      <div className="relative z-10 flex flex-col items-center gap-8">
+        <Wordmark sub="HR Portal" size="lg" />
+        <h1 className="display text-center text-4xl md:text-5xl">
+          Welcome
+          <span className="headline-dim"> back.</span>
+        </h1>
+        <SignIn />
       </div>
-      <SignIn />
     </div>
   );
 }

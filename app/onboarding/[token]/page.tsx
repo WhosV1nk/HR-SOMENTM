@@ -2,19 +2,8 @@ import { createAdminClient } from "@/utils/supabase/admin";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { 
-  Shield, 
-  CheckCircle2, 
-  Circle, 
-  User, 
-  Phone, 
-  FileText, 
-  Check, 
-  ArrowRight, 
-  Lock,
-  Upload,
-  FileCheck
-} from "lucide-react";
+import { IrisBackdrop, Wordmark } from "@/components/wordmark";
+import { CheckCircle2, ArrowRight, Lock } from "lucide-react";
 
 export default async function ExternalOnboardingPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -34,12 +23,13 @@ export default async function ExternalOnboardingPage({ params }: { params: Promi
   if (tokenLookupError || !tokenRecord || tokenRecord.used) {
     const verificationFailed = Boolean(tokenLookupError);
     return (
-      <div className="min-h-screen bg-[#090a0c] text-white flex items-center justify-center p-6">
-        <div className="card max-w-md w-full p-8 text-center space-y-4 border-l-4 border-l-rose-500">
-          <div className="h-12 w-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
+      <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden p-6">
+        <IrisBackdrop />
+        <div className="card relative z-10 w-full max-w-md space-y-4 p-8 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-danger/30 bg-danger-soft text-brand-2">
             <Lock size={24} />
           </div>
-          <h1 className="text-xl font-bold text-white">
+          <h1 className="display text-2xl">
             {verificationFailed ? "Unable to Verify Invitation" : "Onboarding Link Expired"}
           </h1>
           <p className="text-xs text-muted">
@@ -152,60 +142,58 @@ export default async function ExternalOnboardingPage({ params }: { params: Promi
   }
 
   return (
-    <div className="min-h-screen bg-[#090a0c] text-white font-sans antialiased p-6 md:p-12">
+    <div className="relative min-h-screen w-full overflow-x-hidden px-6 py-10 md:px-12">
       {/* Film grain and ambient background */}
       <div
-        className="pointer-events-none fixed inset-0 opacity-[0.05] mix-blend-overlay z-0"
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.04] mix-blend-overlay"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
           backgroundSize: "160px 160px"
         }}
       />
 
-      <div className="max-w-3xl mx-auto space-y-8 relative z-10">
+      <div className="relative z-10 mx-auto max-w-3xl space-y-12">
         
         {/* Brand Header */}
-        <div className="flex justify-between items-center border-b border-border/40 pb-6">
-          <div>
-            <span className="text-xl font-extrabold tracking-widest text-red-500">SOMENTM</span>
-            <div className="text-[10px] text-muted tracking-widest uppercase mt-0.5">HR & People Operations</div>
-          </div>
-          <span className="font-mono text-xs text-muted px-3 py-1 bg-surface-2 rounded-lg border border-border">
+        <div className="flex items-center justify-between border-b border-border pb-6">
+          <Wordmark sub="People Operations" href="#" />
+          <span className="font-mono text-xs text-muted">
             {person.employee_id}
           </span>
         </div>
 
         {submission?.submitted ? (
           /* Submission Confirmation Screen */
-          <div className="card p-10 text-center space-y-6 bg-surface/80 border-l-4 border-l-emerald-500">
-            <div className="h-16 w-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto">
+          <div className="card space-y-6 p-10 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-ok/30 bg-ok-soft text-ok">
               <CheckCircle2 size={32} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Onboarding Submitted Successfully!</h1>
+              <h1 className="display text-4xl">You&apos;re all set.<span className="headline-dim"> HR takes it from here.</span></h1>
               <p className="text-sm text-muted mt-2 max-w-lg mx-auto">
                 Thank you, <strong>{person.first_name}</strong>. Your personal details, emergency contacts, and document submissions have been received by SOMENTM HR.
               </p>
             </div>
 
-            <div className="p-4 bg-surface-2 rounded-xl text-xs text-muted max-w-md mx-auto space-y-2 text-left">
+            <div className="card-2 mx-auto max-w-md space-y-2 p-4 text-left text-xs text-muted">
               <div className="flex justify-between">
                 <span>SOMENTM ID:</span>
-                <strong className="text-white font-mono">{person.employee_id}</strong>
+                <strong className="text-text font-mono">{person.employee_id}</strong>
               </div>
               <div className="flex justify-between">
                 <span>Role:</span>
-                <strong className="text-white">{person.role} ({person.department})</strong>
+                <strong className="text-text">{person.role} ({person.department})</strong>
               </div>
               <div className="flex justify-between">
                 <span>Document Status:</span>
-                <span className="text-amber-400 font-semibold">Pending HR Verification</span>
+                <span className="badge-warn">Pending HR Verification</span>
               </div>
               {submission.student_id_doc_name && (
                 <div className="flex justify-between items-center pt-1 border-t border-border/30">
                   <span>Student ID (PDF):</span>
-                  <span className="text-white font-mono text-[11px] truncate max-w-[180px]">
-                    📄 {submission.student_id_doc_name}
+                  <span className="text-text font-mono text-[11px] truncate max-w-[180px]">
+                    {submission.student_id_doc_name}
                   </span>
                 </div>
               )}
@@ -218,30 +206,31 @@ export default async function ExternalOnboardingPage({ params }: { params: Promi
         ) : (
           /* Multi-step Onboarding Form */
           <div className="space-y-8">
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-white">Welcome to SOMENTM, {person.first_name}!</h1>
-              <p className="text-sm text-muted">Complete your HR onboarding details to activate your account.</p>
+            <div className="space-y-4">
+              <div className="eyebrow">Onboarding</div>
+              <h1 className="display text-4xl md:text-5xl">Welcome, {person.first_name}.<span className="headline-dim"> Let&apos;s get you set up.</span></h1>
+              <p className="text-[15px] text-muted">Three short sections. It takes about five minutes.</p>
             </div>
 
             {/* Read-Only Position Details */}
-            <div className="card p-5 bg-surface-2/60 border border-border/60">
-              <div className="text-xs font-semibold uppercase tracking-wider text-red-400 mb-3">Your Position Details</div>
+            <div className="border-y border-border py-5">
+              <div className="label mb-3">Your position</div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
                   <span className="text-muted">SOMENTM ID</span>
-                  <div className="font-mono font-bold text-white">{person.employee_id}</div>
+                  <div className="font-mono font-bold text-text">{person.employee_id}</div>
                 </div>
                 <div>
                   <span className="text-muted">Department</span>
-                  <div className="font-semibold text-white capitalize">{person.department}</div>
+                  <div className="font-semibold text-text capitalize">{person.department}</div>
                 </div>
                 <div>
                   <span className="text-muted">Role</span>
-                  <div className="font-semibold text-white">{person.role}</div>
+                  <div className="font-semibold text-text">{person.role}</div>
                 </div>
                 <div>
                   <span className="text-muted">Type</span>
-                  <div className="font-semibold text-white">{person.employment_type || person.person_type}</div>
+                  <div className="font-semibold text-text">{person.employment_type || person.person_type}</div>
                 </div>
               </div>
             </div>
@@ -251,8 +240,8 @@ export default async function ExternalOnboardingPage({ params }: { params: Promi
               
               {/* Step 1: Personal Info */}
               <div className="card p-6 space-y-4">
-                <h2 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2 border-b border-border/40 pb-3">
-                  <User size={16} className="text-red-400" /> 1. Personal & Contact Information
+                <h2 className="flex items-baseline gap-3 border-b border-border pb-4 text-xl font-medium tracking-tight">
+                  <span className="index">01</span> Personal & Contact Information
                 </h2>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -284,8 +273,8 @@ export default async function ExternalOnboardingPage({ params }: { params: Promi
 
               {/* Step 2: Emergency Contact */}
               <div className="card p-6 space-y-4">
-                <h2 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2 border-b border-border/40 pb-3">
-                  <Phone size={16} className="text-red-400" /> 2. Emergency Contact
+                <h2 className="flex items-baseline gap-3 border-b border-border pb-4 text-xl font-medium tracking-tight">
+                  <span className="index">02</span> Emergency Contact
                 </h2>
 
                 <div className="grid grid-cols-3 gap-4">
@@ -306,8 +295,8 @@ export default async function ExternalOnboardingPage({ params }: { params: Promi
 
               {/* Step 3: Document Proof & Agreement */}
               <div className="card p-6 space-y-4">
-                <h2 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2 border-b border-border/40 pb-3">
-                  <FileText size={16} className="text-red-400" /> 3. Document Verification & Agreement
+                <h2 className="flex items-baseline gap-3 border-b border-border pb-4 text-xl font-medium tracking-tight">
+                  <span className="index">03</span> Document Verification & Agreement
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -326,21 +315,21 @@ export default async function ExternalOnboardingPage({ params }: { params: Promi
                         name="student_id_file" 
                         accept="application/pdf"
                         required={person.person_type === "Intern"}
-                        className="input text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-red-500/10 file:text-red-400 hover:file:bg-red-500/20 cursor-pointer" 
+                        className="input text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-white file:text-black hover:file:bg-white/90 cursor-pointer" 
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-4 bg-surface-2 rounded-xl border border-border/50 text-xs text-muted space-y-2">
-                  <div className="font-semibold text-white">SOMENTM Employment Agreement & Policy Declaration</div>
+                <div className="card-2 space-y-2 p-4 text-xs leading-relaxed text-muted">
+                  <div className="font-medium text-text">SOMENTM Employment Agreement & Policy Declaration</div>
                   <p>By submitting this form, I confirm that all information provided is accurate and truthful. I agree to abide by SOMENTM policies and confidentiality terms.</p>
                 </div>
               </div>
 
               {/* Submit Button */}
               <div className="flex justify-end">
-                <button type="submit" className="btn-primary py-3 px-8 flex items-center gap-2">
+                <button type="submit" className="btn-primary px-8 py-3">
                   Submit Onboarding <ArrowRight size={16} />
                 </button>
               </div>

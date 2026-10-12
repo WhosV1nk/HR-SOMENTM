@@ -169,6 +169,29 @@ select.input { @apply appearance-none pr-8; background-image: url("data:image/sv
 .badge-muted { @apply badge badge-dot text-muted; }
 .badge-brand { @apply badge badge-dot text-info; }
 .badge-accent { @apply badge badge-dot text-accent; }
+.badge-success { @apply badge badge-dot text-ok; } .badge-warning { @apply badge badge-dot text-warn; } .badge-secondary { @apply badge badge-dot text-muted; }
+/* plain tag — mono micro-label for types/periods, no fill */
+.tag { @apply inline-flex items-center whitespace-nowrap font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted; }
+
+/* ---------- landing-page editorial patterns ---------- */
+/* two-tone headline: "People <span class=headline-dim>directory.</span>" */
+.headline-dim { @apply text-muted; }
+/* mono index numerals — "01", "02" beside rows and section heads */
+.index { @apply font-mono text-[10px] font-medium tabular-nums text-faint; }
+/* text link with a trailing ↗, like "Compare in detail ↗" */
+.link { @apply inline-flex items-center gap-1.5 text-[13px] font-medium text-text transition hover:text-brand-2; }
+/* hairline-divided stat strip (pricing row style) */
+/* 2×2 on small screens, one row of four from lg */
+.stat-strip { @apply grid grid-cols-2 border-y border-border lg:grid-cols-4; }
+.stat-strip > * { @apply border-border py-6 pl-5 pr-5; }
+.stat-strip > :nth-child(odd) { @apply pl-0; }
+.stat-strip > :nth-child(even) { @apply border-l; }
+.stat-strip > :nth-child(-n+2) { @apply border-b lg:border-b-0; }
+@media (width >= 64rem) {
+  .stat-strip > :not(:first-child) { @apply border-l pl-6; }
+}
+.stat-value { @apply display text-[2.75rem] tabular-nums text-text; }
+.stat-unit { @apply ml-1.5 font-mono text-[11px] font-normal tracking-normal text-faint; }
 
 /* status readout with a live dot — plain text, no capsule */
 .status-pill { @apply inline-flex items-center gap-2 text-[12px] text-muted; }
