@@ -4,6 +4,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/onboarding(.*)",
+  "/verify(.*)", // public certificate verification
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

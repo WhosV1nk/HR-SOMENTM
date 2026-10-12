@@ -78,6 +78,36 @@ Before merging the `phase-2-intern-portal` branch into `main`:
 Files are private. The browser only ever gets a two-minute signed link, issued
 after the database confirms the viewer may see that record.
 
+## Phase 4 go-live: certificates & letters of recommendation
+
+Requires Phase 2. Before merging `phase-4-certificates`:
+
+1. Run `supabase/migrations/20261013000004_phase4_certificates.sql`. It adds
+   review types (monthly / midterm / final), the `certificates` table, and
+   `people.can_issue_certificates`. **Founders are the approvers**; give
+   someone else the right with:
+
+   ```sql
+   update people set can_issue_certificates = true where email = 'name@somentm.com';
+   ```
+2. Set `APP_URL` in Vercel to the portal's public address. It is printed
+   on every certificate and in the QR code, so it must be right *before* the
+   first one is issued.
+3. Merge and push.
+
+**How completion works**
+1. Mentor or HR adds a review with type **Final evaluation** (Performance).
+2. HR opens the intern → **Completion & certificate**: checks the checklist,
+   edits the details and the drafted letter, then **Submit for approval**.
+3. An approver clicks **Approve & issue**. The certificate PDF (and the letter
+   if included) is generated, stored privately, and the intern is notified.
+   The internship is marked Completed.
+4. Anyone can check it at `/verify` with the code or QR. A revoked
+   certificate shows as revoked.
+
+Thresholds live in `lib/completion.ts`: certificate needs 60+, letter
+suggested at 75+, grades Pass / Merit (75) / Distinction (90).
+
 ## Local development
 
 `.env.local` currently holds **production** Clerk keys, which Clerk only

@@ -13,7 +13,7 @@ import { createAdminClient } from "@/utils/supabase/admin";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowUpRight, Download, Upload, Mail, Phone, Calendar, CheckCircle2, Circle, Edit3, UserX, UserCheck, CheckSquare } from "lucide-react";
+import { Award, ArrowUpRight, Download, Upload, Mail, Phone, Calendar, CheckCircle2, Circle, Edit3, UserX, UserCheck, CheckSquare } from "lucide-react";
 import { Avatar, PageHeader, SectionHead, Stat, StatusBadge } from "@/components/ui";
 
 export default async function PersonProfilePage({
@@ -280,13 +280,18 @@ export default async function PersonProfilePage({
         <button className="btn-secondary">
           <Edit3 size={15} /> Edit profile
         </button>
-        {person.status === "Active" ? (
+        {isIntern && (
+          <Link href={`/people/${id}/completion`} className="btn-primary">
+            <Award size={15} /> Completion &amp; certificate
+          </Link>
+        )}
+        {person.status === "Active" && !isIntern ? (
           <form action={deactivatePersonAction}>
             <button type="submit" className="btn-danger">
-              <UserX size={15} /> {isIntern ? "Complete internship" : "Deactivate"}
+              <UserX size={15} /> Deactivate
             </button>
           </form>
-        ) : (
+        ) : person.status === "Active" ? null : (
           <form action={reactivatePersonAction}>
             <button type="submit" className="btn-secondary">
               <UserCheck size={15} /> Reactivate

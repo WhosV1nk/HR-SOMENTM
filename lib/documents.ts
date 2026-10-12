@@ -4,5 +4,7 @@ export const KIND_LABEL: Record<string, string> = {
   resume: "Résumé",
   offer_letter: "Offer letter",
   agreement: "Internship agreement",
+  certificate: "Completion certificate",
+  recommendation: "Letter of recommendation",
   other: "Other",
 };

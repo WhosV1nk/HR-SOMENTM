@@ -20,6 +20,8 @@ export default async function PerformancePage() {
 
     const person_id = formData.get("person_id") as string;
     const period = formData.get("period") as string;
+    const review_type = formData.get("review_type") as string;
+    if (!["monthly", "midterm", "final"].includes(review_type)) throw new Error("Pick a review type.");
     
     const task_completion_score = parseFloat(formData.get("task_completion_score") as string) || 0;
     const quality_score = parseFloat(formData.get("quality_score") as string) || 0;
@@ -55,6 +57,7 @@ export default async function PerformancePage() {
       rating,
       summary,
       reviewer_id: actor.id,
+      review_type,
     });
     await logAction(actor.id, "review.submitted", "person", person_id, { period, overall_score });
 
@@ -88,7 +91,7 @@ export default async function PerformancePage() {
                   <div className="display text-5xl tabular-nums">
                     {Math.round(r.overall_score)}<span className="stat-unit">/ 100</span>
                   </div>
-                  <div className="mt-1 font-mono text-[11px] text-faint">{r.period}</div>
+                  <div className="mt-1 font-mono text-[11px] text-faint">{r.period}{r.review_type && r.review_type !== "monthly" ? ` · ${r.review_type}` : ""}</div>
                 </div>
                 <div>
                   <div className="text-xl font-medium tracking-tight">{r.people?.first_name} {r.people?.last_name}</div>
@@ -112,7 +115,7 @@ export default async function PerformancePage() {
           </p>
         </div>
         <form action={submitPerformanceReview} className="space-y-5 lg:col-span-2">
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             <div>
               <label className="label">Person</label>
               <select name="person_id" className="input" required>
@@ -125,6 +128,14 @@ export default async function PerformancePage() {
             <div>
               <label className="label">Period</label>
               <input type="text" name="period" className="input" placeholder="e.g. Q3 2026" required />
+            </div>
+            <div>
+              <label className="label">Type</label>
+              <select name="review_type" className="input" required defaultValue="monthly">
+                <option value="monthly">Monthly review</option>
+                <option value="midterm">Midterm evaluation</option>
+                <option value="final">Final evaluation (used for certificates)</option>
+              </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-5 md:grid-cols-5">

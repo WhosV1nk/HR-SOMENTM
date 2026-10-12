@@ -126,9 +126,9 @@ export default async function InternsPage() {
                     </td>
                     <td><StatusBadge status={intern.status} /></td>
                     <td className="!pr-5 text-right">
-                      <button className="btn-ghost btn-sm">
+                      <Link href={`/people/${intern.id}/completion`} className="btn-ghost btn-sm">
                         <Award size={14} /> Certificate
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))

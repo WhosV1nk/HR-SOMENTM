@@ -14,6 +14,7 @@ import {
   ListChecks,
   FolderLock,
   ClipboardCheck,
+  Award,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationsBell } from "./notifications-bell";
@@ -49,6 +50,7 @@ const ADMIN_NAV: NavSection[] = [
     title: "PERFORMANCE",
     items: [
       { href: "/performance", label: "Performance", icon: TrendingUp },
+      { href: "/certificates", label: "Certificates", icon: Award },
     ]
   },
   {
@@ -74,18 +76,23 @@ const MEMBER_NAV: NavSection[] = [
 ];
 
 
-export function Sidebar({ role, mentor = false }: { role: "admin" | "member" | null; mentor?: boolean }) {
+export function Sidebar({ role, mentor = false, intern = false }: { role: "admin" | "member" | null; mentor?: boolean; intern?: boolean }) {
   const path = usePathname();
 
   if (!role || path.startsWith("/sign-in") || path.startsWith("/sign-up") || path.startsWith("/onboarding") || path.startsWith("/verify")) {
     return null;
   }
+  const memberNav: NavSection[] = intern
+    ? MEMBER_NAV.map((s) =>
+        s.title === "RECORDS" ? { ...s, items: [...s.items, { href: "/portal/certificate", label: "Certificate", icon: Award }] } : s,
+      )
+    : MEMBER_NAV;
   const NAV_SECTIONS =
     role === "admin"
       ? ADMIN_NAV
       : mentor
-        ? [...MEMBER_NAV, { title: "MENTORING", items: [REVIEW_ITEM] }]
-        : MEMBER_NAV;
+        ? [...memberNav, { title: "MENTORING", items: [REVIEW_ITEM] }]
+        : memberNav;
   
   return (
     <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-border bg-bg/70 backdrop-blur-xl md:flex">

@@ -64,7 +64,7 @@ export default async function RootLayout({
           />
 
           <div className="relative z-10 flex h-screen w-full">
-            <Sidebar role={role} mentor={mentor} />
+            <Sidebar role={role} mentor={mentor} intern={viewer?.person.person_type === "Intern"} />
             <main className="flex-1 overflow-y-auto">{children}</main>
           </div>
         </ClerkProvider>
