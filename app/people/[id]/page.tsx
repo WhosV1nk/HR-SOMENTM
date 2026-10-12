@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { logAction, requireAdmin } from "@/lib/auth";
 import { allowEmail, disallowEmail } from "@/lib/clerk-allowlist";
+import { sendOnboardingEmail } from "@/lib/email";
 import { createAdminClient } from "@/utils/supabase/admin";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -8,8 +9,15 @@ import { revalidatePath } from "next/cache";
 import { ArrowUpRight, Mail, Phone, Calendar, CheckCircle2, Circle, Edit3, UserX, UserCheck, CheckSquare } from "lucide-react";
 import { Avatar, PageHeader, SectionHead, Stat, StatusBadge } from "@/components/ui";
 
-export default async function PersonProfilePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PersonProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ email?: string }>;
+}) {
   const { id } = await params;
+  const { email: emailStatus } = await searchParams;
   await requireAdmin();
   const supabase = await createClient();
 
@@ -57,6 +65,30 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
     revalidatePath("/people");
     revalidatePath("/");
     redirect("/people");
+  }
+
+  // Server Action: issue a fresh onboarding link and email it
+  async function resendOnboardingAction() {
+    "use server";
+    const { person: actor } = await requireAdmin();
+    const admin = createAdminClient();
+    const crypto = await import("crypto");
+    const token = crypto.randomBytes(32).toString("hex");
+
+    // retire any unused links so only the newest one works
+    await admin.from("onboarding_tokens").update({ used: true }).eq("person_id", id).eq("used", false);
+    const { error } = await admin.from("onboarding_tokens").insert({
+      person_id: id,
+      token,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      used: false,
+    });
+    if (error) redirect(`/people/${id}?email=failed`);
+
+    const sent = await sendOnboardingEmail(person, token);
+    await logAction(actor.id, sent.ok ? "email.onboarding_sent" : "email.onboarding_failed", "person", id, sent.ok ? undefined : { error: sent.error });
+    revalidatePath(`/people/${id}`);
+    redirect(`/people/${id}?email=${sent.ok ? "sent" : "failed"}`);
   }
 
   // Server Action: Reactivate
@@ -183,6 +215,17 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
         )}
       </PageHeader>
 
+      {emailStatus === "sent" && (
+        <p role="status" className="flex items-center gap-2.5 rounded-2xl border border-ok/30 bg-ok-soft px-4 py-3 text-sm">
+          <span className="live-dot" /> Onboarding email sent to <b className="font-medium">{person.email}</b>.
+        </p>
+      )}
+      {emailStatus === "failed" && (
+        <p role="alert" className="flex items-center gap-2.5 rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm">
+          <span className="live-dot danger" /> The onboarding email couldn&apos;t be sent. Check the Audit log for the reason, or copy the portal link below and send it yourself.
+        </p>
+      )}
+
       {/* Identity strip */}
       <section className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-5">
@@ -250,6 +293,13 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
               ))}
             </ul>
 
+            {person.status !== "Active" && person.status !== "Completed" && person.status !== "Terminated" && (
+              <form action={resendOnboardingAction}>
+                <button className="btn-secondary btn-sm w-full">
+                  <Mail size={14} /> Resend onboarding email
+                </button>
+              </form>
+            )}
             {activeToken ? (
               <div className="card-2 space-y-2 p-3.5">
                 <div className="flex items-center justify-between">
