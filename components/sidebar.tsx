@@ -8,15 +8,18 @@ import {
   Calendar, 
   CalendarDays, 
   TrendingUp, 
-  FileText, 
-  Settings 
+  Settings,
+  ScrollText,
+  Home,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationsBell } from "./notifications-bell";
 import { StatusPill, Wordmark } from "./wordmark";
 import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 
-const NAV_SECTIONS = [
+type NavSection = { title?: string; items: { href: string; label: string; icon: typeof Home }[] };
+
+const ADMIN_NAV: NavSection[] = [
   {
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -40,28 +43,31 @@ const NAV_SECTIONS = [
     title: "PERFORMANCE",
     items: [
       { href: "/performance", label: "Performance", icon: TrendingUp },
-      { href: "/reports", label: "Reports", icon: FileText },
     ]
   },
   {
     title: "SYSTEM",
     items: [
+      { href: "/audit", label: "Audit log", icon: ScrollText },
       { href: "/settings", label: "Settings", icon: Settings },
     ]
   }
 ];
 
-export function Sidebar() {
+const MEMBER_NAV: NavSection[] = [{ items: [{ href: "/portal", label: "My portal", icon: Home }] }];
+
+export function Sidebar({ role }: { role: "admin" | "member" | null }) {
   const path = usePathname();
 
-  if (path.startsWith("/sign-in") || path.startsWith("/sign-up") || path.startsWith("/onboarding")) {
+  if (!role || path.startsWith("/sign-in") || path.startsWith("/sign-up") || path.startsWith("/onboarding") || path.startsWith("/verify")) {
     return null;
   }
+  const NAV_SECTIONS = role === "admin" ? ADMIN_NAV : MEMBER_NAV;
   
   return (
     <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-border bg-bg/70 backdrop-blur-xl md:flex">
       <div className="flex items-center justify-between px-5 pb-6 pt-6">
-        <Wordmark sub="HR Portal" />
+        <Wordmark sub={role === "admin" ? "HR Portal" : "My Portal"} href={role === "admin" ? "/" : "/portal"} />
         <NotificationsBell />
       </div>
 
@@ -75,7 +81,7 @@ export function Sidebar() {
               </div>
             )}
             {section.items.map(({ href, label, icon: Icon }) => {
-              const active = href === "/" ? path === "/" : path.startsWith(href);
+              const active = href === "/" || href === "/portal" ? path === href : path.startsWith(href);
               return (
                 <Link
                   key={href}

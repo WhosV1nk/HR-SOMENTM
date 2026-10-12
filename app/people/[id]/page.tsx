@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
+import { logAction, requireAdmin } from "@/lib/auth";
+import { allowEmail, disallowEmail } from "@/lib/clerk-allowlist";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -9,8 +10,8 @@ import { Avatar, PageHeader, SectionHead, Stat, StatusBadge } from "@/components
 
 export default async function PersonProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  await requireAdmin();
+  const supabase = await createClient();
 
   const { data: person } = await supabase.from("people").select("*").eq("id", id).single();
 
@@ -21,13 +22,14 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
   // Server Action: Complete Onboarding Workflow
   async function completeOnboardingAction() {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
 
     await supabase.from("people").update({
       status: "Active",
       onboarding_progress: 100
     }).eq("id", id);
+    await logAction(actor.id, "onboarding.completed", "person", id);
 
     revalidatePath(`/people/${id}`);
     revalidatePath("/people");
@@ -37,8 +39,10 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
   // Server Action: Controlled Deactivation (Soft Archive)
   async function deactivatePersonAction(formData: FormData) {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
+
+    if (actor.id === id) throw new Error("You can't deactivate your own account.");
 
     const isIntern = person.person_type === "Intern";
     const targetStatus = isIntern ? "Completed" : "Terminated";
@@ -46,6 +50,8 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
     await supabase.from("people").update({
       status: targetStatus
     }).eq("id", id);
+    if (!isIntern) await disallowEmail(person.email);
+    await logAction(actor.id, isIntern ? "internship.completed" : "person.deactivated", "person", id);
 
     revalidatePath(`/people/${id}`);
     revalidatePath("/people");
@@ -56,12 +62,14 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
   // Server Action: Reactivate
   async function reactivatePersonAction() {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
 
     await supabase.from("people").update({
       status: "Active"
     }).eq("id", id);
+    await allowEmail(person.email);
+    await logAction(actor.id, "person.reactivated", "person", id);
 
     revalidatePath(`/people/${id}`);
     revalidatePath("/people");

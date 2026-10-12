@@ -1,11 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
+import { logAction, requireAdmin } from "@/lib/auth";
 import { PageHeader, SectionHead, StatusBadge } from "@/components/ui";
 import { revalidatePath } from "next/cache";
 
 export default async function PerformancePage() {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  await requireAdmin();
+  const supabase = await createClient();
 
   const { data: people } = await supabase.from("people").select("*").order("first_name");
   const { data: reviews } = await supabase
@@ -15,8 +15,8 @@ export default async function PerformancePage() {
 
   async function submitPerformanceReview(formData: FormData) {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
 
     const person_id = formData.get("person_id") as string;
     const period = formData.get("period") as string;
@@ -54,7 +54,9 @@ export default async function PerformancePage() {
       overall_score,
       rating,
       summary,
+      reviewer_id: actor.id,
     });
+    await logAction(actor.id, "review.submitted", "person", person_id, { period, overall_score });
 
     revalidatePath("/performance");
   }

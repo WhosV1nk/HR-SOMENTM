@@ -1,12 +1,12 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
+import { logAction, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { UserPlus, Search, ArrowUpRight } from "lucide-react";
 import { Avatar, Empty, PageHeader, StatusBadge } from "@/components/ui";
 
 export default async function PeoplePage() {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  await requireAdmin();
+  const supabase = await createClient();
 
   const { data: people } = await supabase.from("people").select("*").order("first_name");
 

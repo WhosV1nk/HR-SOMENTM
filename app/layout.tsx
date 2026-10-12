@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
+import { getViewer } from "@/lib/auth";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -14,11 +15,14 @@ export const metadata: Metadata = {
   description: "Intern and Employee Management System",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const viewer = await getViewer();
+  const role = viewer ? (viewer.isAdmin ? "admin" : "member") : null;
+
   return (
     <html lang="en" className={inter.variable}>
       <body className="flex h-full min-h-screen bg-bg font-sans text-text antialiased">
@@ -59,7 +63,7 @@ export default function RootLayout({
           />
 
           <div className="relative z-10 flex h-screen w-full">
-            <Sidebar />
+            <Sidebar role={role} />
             <main className="flex-1 overflow-y-auto">{children}</main>
           </div>
         </ClerkProvider>

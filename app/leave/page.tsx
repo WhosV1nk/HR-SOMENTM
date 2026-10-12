@@ -1,23 +1,24 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
+import { logAction, requireAdmin } from "@/lib/auth";
 import { CalendarDays } from "lucide-react";
 import { Avatar, Empty, PageHeader, SectionHead, StatusBadge } from "@/components/ui";
 import { revalidatePath } from "next/cache";
 
 export default async function LeavePage() {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  await requireAdmin();
+  const supabase = await createClient();
 
   const { data: people } = await supabase.from("people").select("*").order("first_name");
   const { data: requests } = await supabase
     .from("leave_requests")
-    .select("*, people(first_name, last_name, role, department)")
+    // two FKs point at people (person_id, decided_by) — name the one to embed
+    .select("*, people!leave_requests_person_id_fkey(first_name, last_name, role, department)")
     .order("created_at", { ascending: false });
 
   async function createLeaveRequest(formData: FormData) {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
 
     const person_id = formData.get("person_id") as string;
     const leave_type = formData.get("leave_type") as string;
@@ -25,27 +26,39 @@ export default async function LeavePage() {
     const end_date = formData.get("end_date") as string;
     const reason = formData.get("reason") as string;
 
-    await supabase.from("leave_requests").insert({
+    const days = Math.round((Date.parse(end_date) - Date.parse(start_date)) / 86_400_000) + 1;
+    if (!Number.isFinite(days) || days < 1) throw new Error("End date must be on or after the start date.");
+
+    const { data: created, error } = await supabase.from("leave_requests").insert({
       person_id,
       leave_type,
       start_date,
       end_date,
+      duration_days: days,
       reason,
       status: "Pending",
-    });
+    }).select("id").single();
+    if (error) throw new Error(`Couldn't save the leave request: ${error.message}`);
+    await logAction(actor.id, "leave.requested", "leave_request", created.id, { person_id, days });
 
     revalidatePath("/leave");
   }
 
   async function updateLeaveStatus(formData: FormData) {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
 
     const id = formData.get("id") as string;
     const status = formData.get("status") as string;
+    if (status !== "Approved" && status !== "Rejected") throw new Error("Invalid decision.");
 
-    await supabase.from("leave_requests").update({ status }).eq("id", id);
+    await supabase
+      .from("leave_requests")
+      .update({ status, decided_by: actor.id, decided_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("status", "Pending");
+    await logAction(actor.id, `leave.${status.toLowerCase()}`, "leave_request", id);
     revalidatePath("/leave");
   }
 

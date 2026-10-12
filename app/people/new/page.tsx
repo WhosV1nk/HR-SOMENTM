@@ -1,9 +1,9 @@
 import { UserPlus } from "lucide-react";
 import { PageHeader, SectionHead } from "@/components/ui";
 import Link from "next/link";
-import { createClient } from "@/utils/supabase/server";
+import { logAction, requireAdmin } from "@/lib/auth";
+import { allowEmail } from "@/lib/clerk-allowlist";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function NewPersonPage({
@@ -11,17 +11,17 @@ export default async function NewPersonPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  await requireAdmin();
   const { error } = await searchParams;
 
   async function addPerson(formData: FormData) {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
     const adminSupabase = createAdminClient();
 
     const first_name = formData.get("first_name") as string;
     const last_name = formData.get("last_name") as string;
-    const email = formData.get("email") as string;
+    const email = (formData.get("email") as string).trim().toLowerCase();
     const person_type = formData.get("person_type") as string;
     const employment_type = formData.get("employment_type") as string;
     const department = formData.get("department") as string;
@@ -73,6 +73,9 @@ export default async function NewPersonPage({
       }
       redirect("/people/new?error=insert-failed");
     }
+
+    await allowEmail(email);
+    await logAction(actor.id, "person.created", "person", insertedPerson.id, { email, person_type: dbPersonType });
 
     const { error: tokenInsertError } = await adminSupabase.from("onboarding_tokens").insert({
         person_id: insertedPerson.id,

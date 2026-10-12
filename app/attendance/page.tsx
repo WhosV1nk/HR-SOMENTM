@@ -1,13 +1,13 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
+import { logAction, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Avatar, Empty, PageHeader, SectionHead, Stat, StatusBadge } from "@/components/ui";
 
 export default async function AttendancePage() {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  await requireAdmin();
+  const supabase = await createClient();
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -28,8 +28,8 @@ export default async function AttendancePage() {
 
   async function updateAttendance(formData: FormData) {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
 
     const person_id = formData.get("person_id") as string;
     const status = formData.get("status") as string;
@@ -45,6 +45,7 @@ export default async function AttendancePage() {
       method: "HR Manual",
     }, { onConflict: "person_id,date" });
 
+    await logAction(actor.id, "attendance.marked", "person", person_id, { status });
     revalidatePath("/attendance");
   }
 

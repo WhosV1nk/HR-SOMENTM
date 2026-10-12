@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
+import { logAction, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { GraduationCap, Award } from "lucide-react";
 import { Avatar, Empty, PageHeader, SectionHead, StatusBadge } from "@/components/ui";
@@ -7,8 +7,8 @@ import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { revalidatePath } from "next/cache";
 
 export default async function InternsPage() {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  await requireAdmin();
+  const supabase = await createClient();
 
   const { data: interns } = await supabase.from("people").select("*").eq("person_type", "Intern").order("first_name");
   const { data: mentors } = await supabase.from("people").select("*").eq("person_type", "Employee");
@@ -16,20 +16,21 @@ export default async function InternsPage() {
 
   async function assignMentor(formData: FormData) {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
 
     const intern_id = formData.get("intern_id") as string;
     const mentor_id = formData.get("mentor_id") as string;
 
-    await supabase.from("people").update({ mentor_id }).eq("id", intern_id);
+    await supabase.from("people").update({ mentor_id: mentor_id || null }).eq("id", intern_id);
+    await logAction(actor.id, "mentor.assigned", "person", intern_id, { mentor_id: mentor_id || null });
     revalidatePath("/interns");
   }
 
   async function createTask(formData: FormData) {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
 
     const intern_id = formData.get("intern_id") as string;
     const title = formData.get("title") as string;
@@ -44,7 +45,9 @@ export default async function InternsPage() {
       due_date,
       priority,
       status: "Assigned",
+      assigned_by: actor.id,
     });
+    await logAction(actor.id, "task.assigned", "person", intern_id, { title });
 
     revalidatePath("/interns");
   }

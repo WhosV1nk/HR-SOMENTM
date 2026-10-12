@@ -1,5 +1,6 @@
 import { Shield, Building, Bell } from "lucide-react";
 import { PageHeader } from "@/components/ui";
+import { requireAdmin } from "@/lib/auth";
 
 const SECTIONS = [
   { icon: Building, title: "Organization", body: "Company name, logo, timezone and the working-hours threshold (09:00)." },
@@ -7,7 +8,8 @@ const SECTIONS = [
   { icon: Bell, title: "Notifications", body: "Invitation emails via Resend and in-app action alerts." },
 ];
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requireAdmin();
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-6 pb-24 pt-10 md:px-10">
       <PageHeader

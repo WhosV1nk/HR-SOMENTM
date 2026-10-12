@@ -1,13 +1,13 @@
 import { ArrowUpRight } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
+import { logAction, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { Avatar, Empty, PageHeader, SectionHead, Stat, StatusBadge } from "@/components/ui";
 
 export default async function Dashboard() {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  await requireAdmin();
+  const supabase = await createClient();
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -37,8 +37,8 @@ export default async function Dashboard() {
   // Server action for Check-in / Check-out session management
   async function toggleCheckIn(formData: FormData) {
     "use server";
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const { person: actor } = await requireAdmin();
+    const supabase = await createClient();
     
     const person_id = formData.get("person_id") as string;
     const action_type = formData.get("action_type") as string;
@@ -60,6 +60,7 @@ export default async function Dashboard() {
       }).eq("person_id", person_id).eq("date", today);
     }
 
+    await logAction(actor.id, `attendance.${action_type}`, "person", person_id);
     revalidatePath("/");
   }
 
