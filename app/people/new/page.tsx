@@ -10,10 +10,29 @@ import { redirect } from "next/navigation";
 export default async function NewPersonPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    department?: string;
+    role?: string;
+    cohort?: string;
+    person_type?: string;
+  }>;
 }) {
   await requireAdmin();
-  const { error } = await searchParams;
+  const params = await searchParams;
+  const {
+    error,
+    first_name: defaultFirstName,
+    last_name: defaultLastName,
+    email: defaultEmail,
+    department: defaultDepartment,
+    role: defaultRole,
+    cohort: defaultCohort,
+    person_type: defaultPersonType,
+  } = params;
 
   async function addPerson(formData: FormData) {
     "use server";
@@ -79,11 +98,11 @@ export default async function NewPersonPage({
     await logAction(actor.id, "person.created", "person", insertedPerson.id, { email, person_type: dbPersonType });
 
     const { error: tokenInsertError } = await adminSupabase.from("onboarding_tokens").insert({
-        person_id: insertedPerson.id,
-        token: rawToken,
-        expires_at: expiresAt,
-        used: false,
-      });
+      person_id: insertedPerson.id,
+      token: rawToken,
+      expires_at: expiresAt,
+      used: false,
+    });
 
     if (tokenInsertError) {
       console.error("Failed to create onboarding token:", tokenInsertError);
@@ -133,15 +152,36 @@ export default async function NewPersonPage({
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:col-span-2">
             <div>
               <label className="label">First name</label>
-              <input type="text" name="first_name" className="input" placeholder="e.g. Vinayak" required />
+              <input
+                type="text"
+                name="first_name"
+                defaultValue={defaultFirstName || ""}
+                className="input"
+                placeholder="e.g. Vinayak"
+                required
+              />
             </div>
             <div>
               <label className="label">Last name</label>
-              <input type="text" name="last_name" className="input" placeholder="e.g. Sharma" required />
+              <input
+                type="text"
+                name="last_name"
+                defaultValue={defaultLastName || ""}
+                className="input"
+                placeholder="e.g. Sharma"
+                required
+              />
             </div>
             <div className="md:col-span-2">
               <label className="label">Email</label>
-              <input type="email" name="email" className="input" placeholder="name@somentm.com" required />
+              <input
+                type="email"
+                name="email"
+                defaultValue={defaultEmail || ""}
+                className="input"
+                placeholder="name@somentm.com"
+                required
+              />
             </div>
           </div>
         </section>
@@ -154,7 +194,12 @@ export default async function NewPersonPage({
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:col-span-2">
             <div>
               <label className="label">Person type</label>
-              <select name="person_type" className="input" required>
+              <select
+                name="person_type"
+                defaultValue={defaultPersonType || "Intern"}
+                className="input"
+                required
+              >
                 <option value="Founder">Founder</option>
                 <option value="Employee">Employee</option>
                 <option value="Intern">Intern</option>
@@ -172,17 +217,30 @@ export default async function NewPersonPage({
             </div>
             <div>
               <label className="label">Department</label>
-              <select name="department" className="input" required>
+              <select
+                name="department"
+                defaultValue={defaultDepartment || "Engineering"}
+                className="input"
+                required
+              >
                 <option value="Product">Product</option>
                 <option value="Engineering">Engineering</option>
                 <option value="Social Media">Social Media</option>
                 <option value="Marketing">Marketing</option>
                 <option value="Operations">Operations</option>
+                <option value="Design">Design</option>
               </select>
             </div>
             <div>
               <label className="label">Role title</label>
-              <input type="text" name="role" className="input" placeholder="e.g. Chief Executive Officer" required />
+              <input
+                type="text"
+                name="role"
+                defaultValue={defaultRole || ""}
+                className="input"
+                placeholder="e.g. Chief Executive Officer"
+                required
+              />
             </div>
           </div>
         </section>
@@ -195,7 +253,13 @@ export default async function NewPersonPage({
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3 lg:col-span-2">
             <div>
               <label className="label">Cohort</label>
-              <input type="text" name="cohort" className="input" placeholder="e.g. Summer 2026" />
+              <input
+                type="text"
+                name="cohort"
+                defaultValue={defaultCohort || "Summer 2026"}
+                className="input"
+                placeholder="e.g. Summer 2026"
+              />
             </div>
             <div>
               <label className="label">Start date</label>

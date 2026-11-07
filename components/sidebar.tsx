@@ -15,6 +15,8 @@ import {
   FolderLock,
   ClipboardCheck,
   Award,
+  Link2,
+  FileText,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationsBell } from "./notifications-bell";
@@ -36,6 +38,8 @@ const ADMIN_NAV: NavSection[] = [
     items: [
       { href: "/people", label: "People", icon: Users },
       { href: "/interns", label: "Interns", icon: GraduationCap },
+      { href: "/interns/postings", label: "Openings & links", icon: Link2 },
+      { href: "/interns/applications", label: "Applications", icon: FileText },
       REVIEW_ITEM,
     ]
   },
@@ -79,7 +83,14 @@ const MEMBER_NAV: NavSection[] = [
 export function Sidebar({ role, mentor = false, intern = false }: { role: "admin" | "member" | null; mentor?: boolean; intern?: boolean }) {
   const path = usePathname();
 
-  if (!role || path.startsWith("/sign-in") || path.startsWith("/sign-up") || path.startsWith("/onboarding") || path.startsWith("/verify")) {
+  if (
+    !role ||
+    path.startsWith("/sign-in") ||
+    path.startsWith("/sign-up") ||
+    path.startsWith("/onboarding") ||
+    path.startsWith("/verify") ||
+    path.startsWith("/apply")
+  ) {
     return null;
   }
   const memberNav: NavSection[] = intern

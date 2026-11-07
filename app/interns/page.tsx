@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { logAction, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
-import { GraduationCap, Award } from "lucide-react";
+import { GraduationCap, Award, Link2, FileText, ArrowRight } from "lucide-react";
 import { Avatar, Empty, PageHeader, SectionHead, StatusBadge } from "@/components/ui";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { revalidatePath } from "next/cache";
@@ -61,17 +61,62 @@ export default async function InternsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-14 px-6 pb-24 pt-10 md:px-10">
+    <div className="mx-auto max-w-7xl space-y-12 px-6 pb-24 pt-10 md:px-10">
       <PageHeader
         eyebrow="Internship program"
         title="Interns,"
         dim="from day one to certificate."
         description="Cohorts, mentors, task assignments and completion — tracked end to end."
       >
+        <Link href="/interns/postings" className="btn-secondary">
+          <Link2 size={16} /> Openings & links
+        </Link>
+        <Link href="/interns/applications" className="btn-secondary">
+          <FileText size={16} /> Applications
+        </Link>
         <Link href="/people/new" className="btn-primary">
           <GraduationCap size={16} /> Register intern
         </Link>
       </PageHeader>
+
+      {/* Recruitment Quick Nav Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Link
+          href="/interns/postings"
+          className="card p-5 group flex items-start justify-between hover:border-brand/50 transition-colors"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs text-muted">
+              <Link2 size={14} className="text-brand" />
+              <span>Generate Shareable Links</span>
+            </div>
+            <h3 className="text-base font-medium text-text group-hover:text-brand-2 transition-colors flex items-center gap-1.5">
+              Internship Openings & Links <ArrowRight size={14} />
+            </h3>
+            <p className="text-xs text-muted">
+              Create role openings with custom links (/apply/[slug]) and CV upload forms.
+            </p>
+          </div>
+        </Link>
+
+        <Link
+          href="/interns/applications"
+          className="card p-5 group flex items-start justify-between hover:border-brand/50 transition-colors"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs text-muted">
+              <FileText size={14} className="text-ok" />
+              <span>Candidate Pipeline</span>
+            </div>
+            <h3 className="text-base font-medium text-text group-hover:text-brand-2 transition-colors flex items-center gap-1.5">
+              Review Candidate Applications <ArrowRight size={14} />
+            </h3>
+            <p className="text-xs text-muted">
+              Inspect submitted CVs/resumes, shortlist candidates, and convert directly to onboarding.
+            </p>
+          </div>
+        </Link>
+      </div>
 
       {/* Active interns */}
       <section className="space-y-5">
@@ -101,81 +146,80 @@ export default async function InternsPage() {
                         </div>
                       </Link>
                     </td>
-                    <td>
-                      <div className="text-text">{intern.cohort || "—"}</div>
-                      <div className="text-[12px] text-muted">{intern.department}</div>
-                    </td>
+                    <td>{intern.cohort || "—"}</td>
                     <td>
                       <form action={assignMentor}>
                         <input type="hidden" name="intern_id" value={intern.id} />
-                        <AutoSubmitSelect
-                          name="mentor_id"
-                          defaultValue={intern.mentor_id || ""}
-                          aria-label={`Mentor for ${intern.first_name}`}
-                          className="input w-44 rounded-full py-1.5 text-[13px]"
-                        >
-                          <option value="">Unassigned</option>
-                          {mentors?.map(m => (
-                            <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
+                        <AutoSubmitSelect name="mentor_id" defaultValue={intern.mentor_id || ""} aria-label={`Assign mentor for ${intern.first_name}`}>
+                          <option value="">No mentor assigned</option>
+                          {mentors?.map((mentor) => (
+                            <option key={mentor.id} value={mentor.id}>
+                              {mentor.first_name} {mentor.last_name} ({mentor.role})
+                            </option>
                           ))}
                         </AutoSubmitSelect>
                       </form>
                     </td>
-                    <td className="whitespace-nowrap font-mono text-xs text-muted">
+                    <td className="font-mono text-[11px] text-muted">
                       {intern.start_date || "—"} → {intern.end_date || "—"}
                     </td>
-                    <td><StatusBadge status={intern.status} /></td>
+                    <td>
+                      <StatusBadge status={intern.status} />
+                    </td>
                     <td className="!pr-5 text-right">
-                      <Link href={`/people/${intern.id}/completion`} className="btn-ghost btn-sm">
-                        <Award size={14} /> Certificate
-                      </Link>
+                      {intern.status === "Completed" && (
+                        <Link href={`/people/${intern.id}/completion`} className="btn-ghost text-xs" title="View completion certificate">
+                          <Award size={14} className="text-ok" /> Certificate
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))
               ) : (
-                <Empty colSpan={6}>No active interns.</Empty>
+                <Empty colSpan={6}>No interns registered yet.</Empty>
               )}
             </tbody>
           </table>
         </div>
       </section>
 
-      {/* Assign task */}
-      <section className="grid grid-cols-1 gap-8 border-t border-border pt-12 lg:grid-cols-3">
-        <div className="space-y-3">
-          <SectionHead index="02" title="Assign a task" />
-          <p className="max-w-xs text-[13px] leading-relaxed text-muted">Give an intern a deliverable with a due date and priority. It shows up on their profile straight away.</p>
-        </div>
-        <form action={createTask} className="space-y-5 lg:col-span-2">
+      {/* Task assignment */}
+      <section className="space-y-5 border-t border-border pt-12">
+        <SectionHead index="02" title="Assign task" description="Deliverable, due date and priority" />
+        <form action={createTask} className="card space-y-5 p-7">
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <label className="label">Intern</label>
               <select name="intern_id" className="input" required>
-                <option value="">Select intern</option>
-                {interns?.map(i => (
-                  <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>
+                <option value="">Select an intern…</option>
+                {interns?.map((intern) => (
+                  <option key={intern.id} value={intern.id}>
+                    {intern.first_name} {intern.last_name} ({intern.cohort || "Active"})
+                  </option>
                 ))}
               </select>
             </div>
             <div>
               <label className="label">Task title</label>
-              <input type="text" name="title" className="input" placeholder="e.g. Campaign analytics report" required />
+              <input type="text" name="title" className="input" placeholder="e.g. Design onboarding deck" required />
             </div>
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-4">
             <div>
               <label className="label">Due date</label>
               <input type="date" name="due_date" className="input" required />
             </div>
             <div>
-              <label className="label">Estimated effort (hours)</label>
-              <input type="number" name="estimated_hours" min="0.5" step="0.5" className="input tabular-nums" placeholder="e.g. 6" />
+              <label className="label">Estimated hours</label>
+              <input type="number" name="estimated_hours" min="1" max="160" placeholder="e.g. 8" className="input" />
             </div>
             <div>
-              <label className="label">Resources link</label>
-              <input type="url" name="resource_url" className="input" placeholder="https://… (brief, Figma, repo)" />
+              <label className="label">Reference link (optional)</label>
+              <input type="url" name="resource_url" placeholder="https://…" className="input" />
             </div>
             <div>
               <label className="label">Priority</label>
-              <select name="priority" className="input" required>
+              <select name="priority" className="input" defaultValue="Medium">
                 <option value="Low">Low</option>
                 <option value="Medium">Medium</option>
                 <option value="High">High</option>
